@@ -203,7 +203,7 @@
 
   <div id="databaseView" style="display: none;">
     <div class="card">
-      <h2>Google Drive Smart Sync</h2>
+      <h2>Google Drive Sync</h2>
       <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">Authenticate with Google to read/write your encrypted database directly to your personal Drive.</p>
       <div class="form-group" style="margin-bottom: 16px;">
         <label>Google OAuth Client ID</label>
@@ -211,7 +211,8 @@
       </div>
       <div style="display: flex; gap: 8px; flex-wrap: wrap;">
         <button class="btn btn-success btn-sm" onclick="saveClientId()">Save ID</button>
-        <button class="btn btn-primary btn-sm" onclick="triggerSmartSync()">🔄 Smart Sync with Drive</button>
+        <button class="btn btn-primary btn-sm" onclick="authenticateDrive('push')">☁️ Save to Drive</button>
+        <button class="btn btn-primary btn-sm" onclick="authenticateDrive('pull')">⬇️ Load from Drive</button>
         <button class="btn btn-secondary btn-sm" onclick="loadDataFromClipboard()">Load External JSON manually</button>
       </div>
       <div id="syncStatus" style="font-size: 0.85rem; margin-top: 12px; color: var(--warning);"></div>
@@ -275,17 +276,555 @@
       logs: JSON.parse(localStorage.getItem("swim_tracker_logs")) || {},
       engine: JSON.parse(localStorage.getItem("swim_tracker_engine")) || { accumulatedLoad: 0, isDeload: false },
       gamify: JSON.parse(localStorage.getItem("swim_tracker_gamify")) || { xp: 0, streak: 0, shields: 2, unlocked: [] },
-      generatedPlans: JSON.parse(localStorage.getItem("swim_tracker_generated_plans")) || {},
-      localModified: parseInt(localStorage.getItem("swim_tracker_local_mod")) || Date.now(),
-      lastSynced: parseInt(localStorage.getItem("swim_tracker_last_sync")) || 0
+      generatedPlans: JSON.parse(localStorage.getItem("swim_tracker_generated_plans")) || {}
     };
 
-    function markLocalModified() {
-      state.localModified = Date.now();
-      localStorage.setItem("swim_tracker_local_mod", state.localModified);
+    function init() {
+      document.getElementById("gcpClientId").value = localStorage.getItem("gdrive_client_id") || "";
+      ensurePlanExists(state.currentCycle, state.currentWeek);
+      calculateAccumulatedLoad();
+      updateDynamicWeekButtons();
+      renderHUD();
+      renderDaySelector();
+      renderDayView();
+      renderAchievements();
+      document.getElementById("jsonArea").value = JSON.stringify(appData, null, 2);
     }
 
-    function init() {
+    function getActivePhaseKey(week, isDeload) {
+      if (isDeload) return "deload";
+      if (week === 1) return "week1";
+      if (week === 2) return "week2";
+      return "week3";
+    }
+
+    /* THE RANDOMIZATION ENGINE */
+    function ensurePlanExists(cycle, week) {
+      const key = `c${cycle}_w${week}`;
+      if (!state.generatedPlans) state.generatedPlans = {};
+      if (state.generatedPlans[key]) return; 
+
+      const phaseKey = getActivePhaseKey(week, state.engine.isDeload);
+      const blueprint = appData.mesocycle_structure[phaseKey];
+      if (!blueprint) return; 
+
+      const plan = JSON.parse(JSON.stringify(blueprint)); 
+      const catalog = appData.exercise_catalog || {};
+
+      Object.keys(plan.days).forEach(dayId => {
+        ['dryland', 'pool', 'run'].forEach(type => {
+          const usedIds = new Set();
+          if(plan.days[dayId][type]) {
+            plan.days[dayId][type].forEach(slot => {
+               let candidates = Object.keys(catalog).filter(id => catalog[id].type === type && catalog[id].category === slot.category);
+               let nonExcluded = candidates.filter(id => !catalog[id].excludeFromRandom);
+               if (nonExcluded.length > 0) candidates = nonExcluded;
+               let unused = candidates.filter(id => !usedIds.has(id));
+               if (unused.length > 0) candidates = unused;
+               
+               if (candidates.length > 0) {
+                 const picked = candidates[Math.floor(Math.random() * candidates.length)];
+                 slot.exerciseId = picked;
+                 usedIds.add(picked);
+               } else {
+                 slot.exerciseId = null; 
+               }
+            });
+          }
+        });
+      });
+      state.generatedPlans[key] = plan;
+      saveState();
+    }
+
+    function calculateAccumulatedLoad() {
+      let total = 0;
+      Object.entries(state.logs).forEach(([key, entry]) => {
+        if (key.startsWith(`c${state.currentCycle}_`) && entry.sessionStatus && entry.sessionStatus.overall !== 'missed') {
+            const ratio = entry.completionRatio !== undefined ? entry.completionRatio : 1;
+            total += (entry.rpe || 0) * 10 * ratio; 
+        }
+      });
+      state.engine.accumulatedLoad = total;
+      if (state.engine.accumulatedLoad >= LOAD_BUFFER_THRESHOLD && !state.engine.isDeload) {
+        state.engine.isDeload = true;
+        unlockBadge("threshold_reached");
+      }
+    }
+
+    function updateDynamicWeekButtons() {
+      document.getElementById("cycleLabel").innerText = `C${state.currentCycle}:`;
+      const container = document.getElementById("dynamicWeekButtons");
+      container.innerHTML = "";
+      const displayCount = Math.max(3, Math.min(6, Math.max(state.currentWeek, state.activeWeeksInCycle)));
+      for (let w = 1; w <= displayCount; w++) {
+        const btn = document.createElement("button");
+        btn.className = `cycle-btn ${w === state.currentWeek ? "active" : ""}`;
+        btn.innerText = `W${w}`;
+        btn.onclick = () => selectWeek(w);
+        container.appendChild(btn);
+      }
+    }
+
+    function switchView(view) {
+      document.getElementById("plannerView").style.display = view === "planner" ? "block" : "none";
+      document.getElementById("achievementsView").style.display = view === "achievements" ? "block" : "none";
+      document.getElementById("databaseView").style.display = view === "database" ? "block" : "none";
+      document.getElementById("cycleControls").style.display = view === "planner" ? "flex" : "none";
+      document.getElementById("tabPlanner").classList.toggle("active", view === "planner");
+      document.getElementById("tabAchievements").classList.toggle("active", view === "achievements");
+      document.getElementById("tabDatabase").classList.toggle("active", view === "database");
+      if (view === "achievements") renderAchievements();
+    }
+
+    function selectWeek(w) { 
+      state.currentWeek = w; 
+      ensurePlanExists(state.currentCycle, state.currentWeek);
+      updateDynamicWeekButtons(); 
+      renderDaySelector(); 
+      renderDayView(); 
+    }
+
+    function selectDay(d) { state.currentDay = d; renderDaySelector(); renderDayView(); }
+
+    function renderHUD() {
+      const g = state.gamify, eng = state.engine;
+      document.getElementById("hudStreak").innerText = `${g.streak} Day${g.streak === 1 ? '' : 's'}`;
+      document.getElementById("hudShields").innerText = `${g.shields} / 3`;
+      const level = Math.floor(g.xp / 400) + 1;
+      document.getElementById("hudLevel").innerText = `Level ${level}`;
+      document.getElementById("hudXp").innerText = `${g.xp} XP`;
+      document.getElementById("hudXpBar").style.width = `${Math.min(100, ((g.xp % 400) / 400) * 100)}%`;
+      const loadPercent = Math.min(100, (eng.accumulatedLoad / LOAD_BUFFER_THRESHOLD) * 100);
+      document.getElementById("hudLoad").innerText = `${Math.round(eng.accumulatedLoad)} / ${LOAD_BUFFER_THRESHOLD} pts`;
+      document.getElementById("hudLoadBar").style.width = `${loadPercent}%`;
+    }
+
+    function renderDaySelector() {
+      const container = document.getElementById("daySelector");
+      container.innerHTML = "";
+      DAYS.forEach(day => {
+        const logKey = `c${state.currentCycle}_w${state.currentWeek}_${day.id}`;
+        const log = state.logs[logKey];
+        const isCompleted = log && log.sessionStatus && log.sessionStatus.overall === "completed";
+        const btn = document.createElement("button");
+        btn.className = `day-btn ${day.id === state.currentDay ? "active" : ""} ${isCompleted ? "completed" : ""} ${(log && log.sessionStatus && log.sessionStatus.overall === "shielded") ? "shielded" : ""}`;
+        btn.onclick = () => selectDay(day.id);
+        btn.innerHTML = `<span style="font-weight:700;font-size:0.9rem;">${day.short}</span><span class="status-dot"></span>`;
+        container.appendChild(btn);
+      });
+    }
+
+    /* SPECIFIC WORKOUT RPE LOGIC */
+    window.toggleRpe = function(key) {
+      const status = document.getElementById(`status_${key}`).value;
+      const container = document.getElementById(`rpe_container_${key}`);
+      if(container) {
+          container.style.display = (status === 'missed') ? 'none' : 'flex';
+      }
+      updateOverallRpe();
+    };
+
+    window.updateOverallRpe = function() {
+      let sum = 0;
+      let count = 0;
+      ['dryland', 'pool', 'run'].forEach(key => {
+          const statusEl = document.getElementById(`status_${key}`);
+          const rpeEl = document.getElementById(`rpe_${key}`);
+          if (statusEl && rpeEl && statusEl.value !== 'missed') {
+              sum += parseFloat(rpeEl.value);
+              count++;
+          }
+      });
+      const avgDisplay = document.getElementById("liveAvgRpe");
+      if (avgDisplay) {
+          avgDisplay.innerText = count > 0 ? (sum / count).toFixed(1) : "0";
+      }
+    };
+
+    function renderSessionLoggers(dayData, existingLog) {
+      const container = document.getElementById("sessionLoggers");
+      container.innerHTML = "";
+      const statuses = existingLog ? (existingLog.sessionStatus || {}) : {};
+      const rpes = existingLog ? (existingLog.sessionRpes || {}) : {};
+      const plannedRpe = Math.round(dayData.baseRpe || 5);
+      
+      let hasScheduled = false;
+
+      const renderLogger = (key, label) => {
+        if (!dayData[key] || dayData[key].length === 0) return;
+        hasScheduled = true;
+        
+        const isRest = dayData[key].some(item => item.category === 'rest');
+        const defaultRpe = isRest ? 0 : plannedRpe;
+        const statusVal = statuses[key] || "completed";
+        const rpeVal = rpes[key] !== undefined ? rpes[key] : defaultRpe;
+        
+        container.innerHTML += `
+          <div class="form-group" style="border-left: 2px solid var(--primary); padding-left: 10px; margin-bottom: 12px; background: rgba(15, 23, 42, 0.4); padding: 10px; border-radius: 6px;">
+            <label style="color: #fff; font-size: 0.95rem; margin-bottom: 6px;">${label}</label>
+            <div style="display: flex; gap: 10px; margin-bottom: 8px;">
+                <select id="status_${key}" style="flex: 1; border-color: var(--primary);" onchange="toggleRpe('${key}')">
+                  <option value="completed" ${statusVal==='completed'?'selected':''}>Completed</option>
+                  <option value="modified" ${statusVal==='modified'?'selected':''}>Modified</option>
+                  <option value="missed" ${statusVal==='missed'?'selected':''}>Missed / Skipped</option>
+                </select>
+            </div>
+            <div id="rpe_container_${key}" style="display: ${statusVal==='missed' ? 'none' : 'flex'}; gap: 10px; align-items: center;">
+                <span style="font-size: 0.8rem; color: var(--text-muted); width: 40px;">RPE:</span>
+                <input type="range" id="rpe_${key}" min="0" max="10" value="${rpeVal}" oninput="document.getElementById('rpe_val_${key}').innerText = this.value; updateOverallRpe();" style="flex: 1;" />
+                <strong id="rpe_val_${key}" style="color: var(--primary); font-size: 1.1rem; min-width: 20px; text-align: right;">${rpeVal}</strong>
+            </div>
+          </div>
+        `;
+      };
+
+      renderLogger('dryland', 'Dryland Session');
+      renderLogger('pool', 'Pool Session');
+      renderLogger('run', 'Run Session');
+
+      if (!hasScheduled) {
+        container.innerHTML = `
+          <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:12px;">Rest Day. Maintain habit by saving log.</div>
+        `;
+      } else {
+         container.innerHTML += `
+           <div id="averageRpeDisplay" style="margin-top: 16px; font-size: 1rem; text-align: center; background: rgba(56, 189, 248, 0.1); padding: 8px; border-radius: 6px; border: 1px dashed var(--primary);">
+             Calculated Average RPE: <strong id="liveAvgRpe" style="font-size: 1.15rem;">--</strong>
+           </div>
+         `;
+         setTimeout(updateOverallRpe, 0); 
+      }
+    }
+
+    function renderDayView() {
+      const planKey = `c${state.currentCycle}_w${state.currentWeek}`;
+      const plan = state.generatedPlans[planKey];
+      if (!plan || !plan.days) return;
+
+      const dayData = plan.days[state.currentDay] || { dryland: [], pool: [], run: [], baseRpe: 0.0 };
+      const existingLog = state.logs[`${planKey}_${state.currentDay}`];
+
+      document.getElementById("currentDayTitle").innerText = `${DAYS.find(d => d.id === state.currentDay).name} Plan`;
+      document.getElementById("weekPhaseBadge").className = `badge ${plan.badge}`;
+      document.getElementById("weekPhaseBadge").innerText = state.engine.isDeload ? "Deload Week: Recovery & Restoration" : `${plan.phaseName}`;
+
+      renderExerciseList("dryland", dayData.dryland || []);
+      renderExerciseList("pool", dayData.pool || []);
+      renderExerciseList("run", dayData.run || []);
+      renderSessionLoggers(dayData, existingLog);
+
+      const plannedRpe = (dayData.baseRpe || 0).toFixed(1);
+      document.getElementById("plannedRpeDisplay").innerText = plannedRpe;
+
+      if (existingLog) {
+        document.getElementById("loggedRpeDisplay").innerText = Number(existingLog.rpe).toFixed(1);
+        document.getElementById("logNotes").value = existingLog.notes || "";
+        document.getElementById("adaptiveFeedback").innerHTML = `Logged. Delta vs Target: ${(existingLog.rpe - plannedRpe).toFixed(1)}`;
+      } else {
+        document.getElementById("loggedRpeDisplay").innerText = "--";
+        document.getElementById("logNotes").value = "";
+        document.getElementById("adaptiveFeedback").innerHTML = `<strong>Target Baseline RPE is ${plannedRpe}.</strong>`;
+      }
+    }
+
+    function renderExerciseList(type, list) {
+      const catalog = appData.exercise_catalog || {};
+      document.getElementById(`${type}List`).innerHTML = list.map((item, index) => {
+        if (!item.exerciseId || !catalog[item.exerciseId]) return `<li class="exercise-item"><div><strong>No matching exercise found in Catalog</strong><span class="meta">${item.category}</span></div></li>`;
+        const entry = catalog[item.exerciseId];
+        return `
+          <li class="exercise-item ${type === 'run' ? 'running-item' : ''}">
+            <div>
+              <strong>${entry.name}</strong>
+              <span class="meta" style="color:var(--accent); font-weight:600;">${item.category.toUpperCase().replace("_"," ")}</span>
+              <span class="meta">${item.prescription} ${entry.equipment !== 'None' ? `• ${entry.equipment}` : ''}</span>
+            </div>
+            <div class="item-actions">
+              <button onclick="openEditExerciseModal('${type}', ${index})">✎</button>
+              <button class="del" onclick="deleteExercise('${type}', ${index})">✕</button>
+            </div>
+          </li>
+        `;
+      }).join("");
+    }
+
+    function handleLogSubmit(e) {
+      e.preventDefault();
+      const planKey = `c${state.currentCycle}_w${state.currentWeek}`;
+      const logKey = `${planKey}_${state.currentDay}`;
+      const dayData = state.generatedPlans[planKey].days[state.currentDay];
+      const plannedRpe = (dayData.baseRpe || 0);
+      const notes = document.getElementById("logNotes").value;
+
+      const sessionStatus = {};
+      const sessionRpes = {};
+      let scheduledCount = 0; let completedCount = 0;
+      let sumRpe = 0;
+
+      ['dryland', 'pool', 'run'].forEach(key => {
+        const el = document.getElementById(`status_${key}`);
+        if (el) {
+          const status = el.value;
+          sessionStatus[key] = status;
+          scheduledCount++;
+          if (status === 'completed' || status === 'modified') {
+            completedCount++;
+            const rpeVal = parseFloat(document.getElementById(`rpe_${key}`).value);
+            sessionRpes[key] = rpeVal;
+            sumRpe += rpeVal;
+          }
+        }
+      });
+
+      const isRestDay = (scheduledCount === 0);
+      const completionRatio = isRestDay ? 1.0 : (completedCount / scheduledCount);
+      const isNewLog = !state.logs[logKey];
+      
+      let finalRpe = completedCount > 0 ? (sumRpe / completedCount) : 0;
+
+      if (completionRatio === 0 && !isRestDay) {
+        if (state.gamify.shields > 0) {
+          if (isNewLog) state.gamify.shields -= 1;
+          sessionStatus.overall = "shielded";
+          unlockBadge("shield_saver");
+          alert("🛡️ Streak Shield Activated!");
+        } else {
+          state.gamify.streak = 0;
+          sessionStatus.overall = "missed";
+          alert("⚠️ Streak Reset! 0 shields left.");
+        }
+      } else {
+        if (isNewLog) {
+          state.gamify.streak += 1;
+          let earnedXp = isRestDay ? 30 : Math.round(100 * completionRatio);
+          if (sessionStatus.run && sessionStatus.run !== 'missed') unlockBadge("runner_swimmer");
+          state.gamify.xp += earnedXp;
+        }
+        sessionStatus.overall = "completed";
+      }
+
+      state.logs[logKey] = { rpe: finalRpe, sessionRpes, rpeDelta: finalRpe - plannedRpe, sessionStatus, completionRatio, notes, timestamp: new Date().toISOString() };
+      calculateAccumulatedLoad(); saveState(); init();
+    }
+
+    function advanceWeekWorkflow() {
+      if (state.engine.isDeload || state.currentWeek >= 6) {
+        if (confirm(`Conclude Cycle ${state.currentCycle}? Load buffer will reset.`)) {
+          state.currentCycle++; state.currentWeek = 1; state.activeWeeksInCycle = 3;
+          state.engine.accumulatedLoad = 0; state.engine.isDeload = false; state.gamify.xp += 200;
+        }
+      } else {
+        state.currentWeek++;
+        if (state.currentWeek > state.activeWeeksInCycle) state.activeWeeksInCycle = state.currentWeek;
+        if (state.currentWeek === 6) state.engine.isDeload = true;
+      }
+      ensurePlanExists(state.currentCycle, state.currentWeek);
+      saveState(); init(); selectDay("sun");
+    }
+
+    function unlockBadge(id) { if (!state.gamify.unlocked.includes(id)) { state.gamify.unlocked.push(id); saveState(); } }
+    
+    function renderAchievements() {
+      document.getElementById("achievementsList").innerHTML = ACHIEVEMENTS_DATA.map(item => `
+        <div class="achievement-card ${state.gamify.unlocked.includes(item.id) ? 'unlocked' : ''}">
+          <div class="icon">${item.icon}</div><span class="title">${item.title}</span><span class="desc">${item.desc}</span>
+        </div>
+      `).join('');
+    }
+
+    function saveState() {
+      localStorage.setItem("swim_tracker_logs", JSON.stringify(state.logs));
+      localStorage.setItem("swim_tracker_engine", JSON.stringify(state.engine));
+      localStorage.setItem("swim_tracker_gamify", JSON.stringify(state.gamify));
+      localStorage.setItem("swim_tracker_generated_plans", JSON.stringify(state.generatedPlans));
+    }
+
+    /* Modal / Category Extractor Editor */
+    window.populateCategoryDropdown = function(type, selectedCategory = "") {
+      const select = document.getElementById("modalCategorySelect");
+      select.innerHTML = "";
+      const catalog = appData.exercise_catalog || {};
+      const categories = new Set();
+      Object.values(catalog).forEach(ex => { if (ex.type === type) categories.add(ex.category); });
+      Array.from(categories).sort().forEach(cat => {
+        const opt = document.createElement("option");
+        opt.value = cat; opt.innerText = cat.replace("_", " ").toUpperCase();
+        if (cat === selectedCategory) opt.selected = true;
+        select.appendChild(opt);
+      });
+      populateGroupedDropdown(); 
+    }
+
+    window.populateGroupedDropdown = function(selectedId = "") {
+      const type = document.getElementById("modalType").value;
+      const category = document.getElementById("modalCategorySelect").value;
+      const select = document.getElementById("modalExerciseSelect");
+      select.innerHTML = `<option value="" disabled ${!selectedId ? 'selected' : ''}>-- Choose Exercise --</option>`;
+      const catalog = appData.exercise_catalog || {};
+      Object.entries(catalog).forEach(([id, ex]) => {
+        if (ex.type === type && ex.category === category) {
+          const opt = document.createElement("option");
+          opt.value = id; opt.innerText = ex.name;
+          if (id === selectedId) opt.selected = true;
+          select.appendChild(opt);
+        }
+      });
+    }
+
+    function openAddExerciseModal(type) {
+      document.getElementById("modalType").value = type;
+      document.getElementById("modalEditIndex").value = "-1";
+      document.getElementById("modalTitle").innerText = `Add to ${type.toUpperCase()}`;
+      document.getElementById("modalPrescription").value = "";
+      populateCategoryDropdown(type);
+      document.getElementById("exerciseModal").style.display = "flex";
+    }
+    
+    function openEditExerciseModal(type, index) {
+      const planKey = `c${state.currentCycle}_w${state.currentWeek}`;
+      const item = state.generatedPlans[planKey].days[state.currentDay][type][index];
+      document.getElementById("modalType").value = type;
+      document.getElementById("modalEditIndex").value = index;
+      document.getElementById("modalTitle").innerText = `Edit ${type.toUpperCase()}`;
+      document.getElementById("modalPrescription").value = item.prescription || "";
+      populateCategoryDropdown(type, item.category);
+      populateGroupedDropdown(item.exerciseId);
+      document.getElementById("exerciseModal").style.display = "flex";
+    }
+    
+    function closeModal() { document.getElementById("exerciseModal").style.display = "none"; }
+    
+    function saveModalExercise(e) {
+      e.preventDefault();
+      const type = document.getElementById("modalType").value;
+      const index = parseInt(document.getElementById("modalEditIndex").value);
+      const category = document.getElementById("modalCategorySelect").value;
+      const exerciseId = document.getElementById("modalExerciseSelect").value;
+      const prescription = document.getElementById("modalPrescription").value;
+
+      const planKey = `c${state.currentCycle}_w${state.currentWeek}`;
+      const arr = state.generatedPlans[planKey].days[state.currentDay][type];
+      
+      if (index === -1) arr.push({ category, exerciseId, prescription });
+      else arr[index] = { category, exerciseId, prescription };
+      
+      saveState(); closeModal(); renderDayView();
+    }
+    
+    function deleteExercise(type, index) {
+      const planKey = `c${state.currentCycle}_w${state.currentWeek}`;
+      state.generatedPlans[planKey].days[state.currentDay][type].splice(index, 1);
+      saveState(); renderDayView();
+    }
+    
+    /* MANUAL LOAD - DELETES CURRENT WEEK SO NEW BLUEPRINT APPLIES IMMEDIATELY */
+    function loadDataFromClipboard() {
+      try { 
+        appData = JSON.parse(document.getElementById("jsonArea").value); 
+        delete state.generatedPlans[`c${state.currentCycle}_w${state.currentWeek}`]; // Force re-roll
+        localStorage.setItem("swim_tracker_app_data", JSON.stringify(appData));
+        saveState();
+        init(); 
+        alert("Database loaded and current week regenerated!"); 
+      } catch(e) { alert("Invalid JSON format."); }
+    }
+
+    /* GOOGLE DRIVE SYNC: EXPLICIT PUSH / PULL */
+    const SCOPES = 'https://www.googleapis.com/auth/drive.file';
+    let tokenClient;
+    let pendingAction = null;
+
+    function saveClientId() {
+      const id = document.getElementById("gcpClientId").value.trim();
+      if(id) { localStorage.setItem("gdrive_client_id", id); alert("Client ID Saved."); }
+    }
+
+    function updateSyncStatus(msg, isError=false) {
+      const el = document.getElementById("syncStatus");
+      el.innerText = msg; el.style.color = isError ? "var(--danger)" : "var(--success)";
+    }
+
+    function authenticateDrive(action) {
+      const clientId = localStorage.getItem("gdrive_client_id");
+      if (!clientId) return updateSyncStatus("Please enter your Google Client ID first.", true);
+      updateSyncStatus("Authenticating with Google...");
+      pendingAction = action;
+      tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: clientId, scope: SCOPES,
+        callback: (response) => {
+          if (response.error) updateSyncStatus("Authentication failed.", true);
+          else {
+              if (pendingAction === 'push') executePush(response.access_token);
+              else if (pendingAction === 'pull') executePull(response.access_token);
+          }
+        }
+      });
+      tokenClient.requestAccessToken();
+    }
+
+    async function executePush(token) {
+      updateSyncStatus("Uploading to Drive...");
+      try {
+        const query = encodeURIComponent("name='swim_tracker_db.json' and trashed=false");
+        const listRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id)`, { headers: { Authorization: `Bearer ${token}` }});
+        const listData = await listRes.json();
+        
+        const buildPayload = () => JSON.stringify({ appData, logs: state.logs, engine: state.engine, gamify: state.gamify, generatedPlans: state.generatedPlans, currentWeek: state.currentWeek, currentCycle: state.currentCycle });
+
+        if (!listData.files || listData.files.length === 0) {
+          const metadata = { name: 'swim_tracker_db.json', mimeType: 'application/json' };
+          const form = new FormData();
+          form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+          form.append('file', new Blob([buildPayload()], { type: 'application/json' }));
+          
+          await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: form });
+        } else {
+          const fileId = listData.files[0].id;
+          await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, { method: 'PATCH', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: buildPayload() });
+        }
+        updateSyncStatus(`✓ Successfully Saved to Drive (${new Date().toLocaleTimeString()})`);
+      } catch (err) { updateSyncStatus(`Upload Error: ${err.message}`, true); }
+    }
+
+    /* PULL - DELETES CURRENT WEEK SO CLOUD BLUEPRINT APPLIES IMMEDIATELY */
+    async function executePull(token) {
+      updateSyncStatus("Downloading from Drive...");
+      try {
+        const query = encodeURIComponent("name='swim_tracker_db.json' and trashed=false");
+        const listRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id)`, { headers: { Authorization: `Bearer ${token}` }});
+        const listData = await listRes.json();
+
+        if (!listData.files || listData.files.length === 0) {
+            return updateSyncStatus("No database found on Drive. Save to Drive first.", true);
+        }
+
+        const fileId = listData.files[0].id;
+        const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, { headers: { Authorization: `Bearer ${token}` }});
+        const data = await res.json();
+        
+        appData = data.appData; 
+        state.logs = data.logs; 
+        state.engine = data.engine; 
+        state.gamify = data.gamify;
+        state.generatedPlans = data.generatedPlans || {};
+        state.currentWeek = data.currentWeek; 
+        state.currentCycle = data.currentCycle;
+
+        // Force rebuild of current week based on newly downloaded blueprint
+        delete state.generatedPlans[`c${state.currentCycle}_w${state.currentWeek}`];
+
+        localStorage.setItem("swim_tracker_app_data", JSON.stringify(appData)); 
+        saveState(); 
+        init();
+        updateSyncStatus(`✓ Successfully Loaded from Drive (${new Date().toLocaleTimeString()})`);
+      } catch (err) { updateSyncStatus(`Download Error: ${err.message}`, true); }
+    }
+
+    window.onload = init;
+  </script>
+</body>
+</html>
       document.getElementById("gcpClientId").value = localStorage.getItem("gdrive_client_id") || "";
       ensurePlanExists(state.currentCycle, state.currentWeek);
       calculateAccumulatedLoad();
