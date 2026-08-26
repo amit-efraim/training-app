@@ -184,7 +184,7 @@
 
             <div class="form-group" style="margin-top:16px;">
               <label>Overall Session Notes</label>
-              <textarea id="logNotes" rows="2" placeholder="Shoulders feeling tired, turnover was fast..."></textarea>
+              <textarea id="logNotes" rows="2" placeholder="Notes..."></textarea>
             </div>
             <button type="submit" class="btn" style="width: 100%;">Save Log & Update Buffer</button>
           </form>
@@ -265,8 +265,8 @@
     const LOAD_BUFFER_THRESHOLD = 400;
 
     let appData = JSON.parse(localStorage.getItem("swim_tracker_app_data"));
-    if (!appData || appData.version !== 9.0) {
-      appData = { version: 9.0, exercise_catalog: {}, mesocycle_structure: {} };
+    if (!appData || appData.version !== 10.0) {
+      appData = { version: 10.0, exercise_catalog: {}, mesocycle_structure: {} };
       localStorage.setItem("swim_tracker_app_data", JSON.stringify(appData));
     }
 
@@ -308,7 +308,7 @@
     function ensurePlanExists(cycle, week) {
       const key = `c${cycle}_w${week}`;
       if (!state.generatedPlans) state.generatedPlans = {};
-      if (state.generatedPlans[key]) return; // Week already rolled
+      if (state.generatedPlans[key]) return; 
 
       const phaseKey = getActivePhaseKey(week, state.engine.isDeload);
       const blueprint = appData.mesocycle_structure[phaseKey];
@@ -348,7 +348,7 @@
       Object.entries(state.logs).forEach(([key, entry]) => {
         if (key.startsWith(`c${state.currentCycle}_`) && entry.sessionStatus && entry.sessionStatus.overall !== 'missed') {
             const ratio = entry.completionRatio !== undefined ? entry.completionRatio : 1;
-            total += (entry.rpe || 5) * 10 * ratio; // Using the average RPE recorded in the log
+            total += (entry.rpe || 0) * 10 * ratio; 
         }
       });
       state.engine.accumulatedLoad = total;
@@ -444,7 +444,7 @@
       });
       const avgDisplay = document.getElementById("liveAvgRpe");
       if (avgDisplay) {
-          avgDisplay.innerText = count > 0 ? (sum / count).toFixed(1) : "--";
+          avgDisplay.innerText = count > 0 ? (sum / count).toFixed(1) : "0";
       }
     };
 
@@ -460,8 +460,11 @@
       const renderLogger = (key, label) => {
         if (!dayData[key] || dayData[key].length === 0) return;
         hasScheduled = true;
+        
+        const isRest = dayData[key].some(item => item.category === 'rest');
+        const defaultRpe = isRest ? 0 : plannedRpe;
         const statusVal = statuses[key] || "completed";
-        const rpeVal = rpes[key] || plannedRpe;
+        const rpeVal = rpes[key] !== undefined ? rpes[key] : defaultRpe;
         
         container.innerHTML += `
           <div class="form-group" style="border-left: 2px solid var(--primary); padding-left: 10px; margin-bottom: 12px; background: rgba(15, 23, 42, 0.4); padding: 10px; border-radius: 6px;">
@@ -475,7 +478,7 @@
             </div>
             <div id="rpe_container_${key}" style="display: ${statusVal==='missed' ? 'none' : 'flex'}; gap: 10px; align-items: center;">
                 <span style="font-size: 0.8rem; color: var(--text-muted); width: 40px;">RPE:</span>
-                <input type="range" id="rpe_${key}" min="1" max="10" value="${rpeVal}" oninput="document.getElementById('rpe_val_${key}').innerText = this.value; updateOverallRpe();" style="flex: 1;" />
+                <input type="range" id="rpe_${key}" min="0" max="10" value="${rpeVal}" oninput="document.getElementById('rpe_val_${key}').innerText = this.value; updateOverallRpe();" style="flex: 1;" />
                 <strong id="rpe_val_${key}" style="color: var(--primary); font-size: 1.1rem; min-width: 20px; text-align: right;">${rpeVal}</strong>
             </div>
           </div>
@@ -486,25 +489,13 @@
       renderLogger('pool', 'Pool Session');
       renderLogger('run', 'Run Session');
 
-      if (!hasScheduled) {
-        const restRpe = existingLog ? existingLog.rpe : plannedRpe;
-        container.innerHTML = `
-          <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:12px;">Rest Day Scheduled. Maintain habit by logging recovery check-in.</div>
-          <div class="form-group">
-            <label>Daily Readiness / Recovery RPE (1-10)</label>
-            <div style="display: flex; gap: 10px; align-items: center; margin-top: 6px;">
-              <input type="range" id="rpe_rest" min="1" max="10" value="${restRpe}" oninput="document.getElementById('rpe_val_rest').innerText = this.value;" style="flex: 1;" />
-              <strong id="rpe_val_rest" style="color: var(--primary); font-size: 1.2rem; min-width: 24px; text-align: right;">${restRpe}</strong>
-            </div>
-          </div>
-        `;
-      } else {
+      if (hasScheduled) {
          container.innerHTML += `
            <div id="averageRpeDisplay" style="margin-top: 16px; font-size: 1rem; text-align: center; background: rgba(56, 189, 248, 0.1); padding: 8px; border-radius: 6px; border: 1px dashed var(--primary);">
              Calculated Average RPE: <strong id="liveAvgRpe" style="font-size: 1.15rem;">--</strong>
            </div>
          `;
-         setTimeout(updateOverallRpe, 0); // Init live average display
+         setTimeout(updateOverallRpe, 0); 
       }
     }
 
@@ -513,7 +504,7 @@
       const plan = state.generatedPlans[planKey];
       if (!plan || !plan.days) return;
 
-      const dayData = plan.days[state.currentDay] || { dryland: [], pool: [], run: [], baseRpe: 1.0 };
+      const dayData = plan.days[state.currentDay] || { dryland: [], pool: [], run: [], baseRpe: 0.0 };
       const existingLog = state.logs[`${planKey}_${state.currentDay}`];
 
       document.getElementById("currentDayTitle").innerText = `${DAYS.find(d => d.id === state.currentDay).name} Plan`;
@@ -592,12 +583,7 @@
       const completionRatio = isRestDay ? 1.0 : (completedCount / scheduledCount);
       const isNewLog = !state.logs[logKey];
       
-      let finalRpe = 0;
-      if (isRestDay) {
-          finalRpe = parseFloat(document.getElementById("rpe_rest").value);
-      } else {
-          finalRpe = completedCount > 0 ? (sumRpe / completedCount) : 0;
-      }
+      let finalRpe = completedCount > 0 ? (sumRpe / completedCount) : 0;
 
       if (completionRatio === 0 && !isRestDay) {
         if (state.gamify.shields > 0) {
@@ -669,7 +655,7 @@
         if (cat === selectedCategory) opt.selected = true;
         select.appendChild(opt);
       });
-      populateGroupedDropdown(); // cascade
+      populateGroupedDropdown(); 
     }
 
     window.populateGroupedDropdown = function(selectedId = "") {
