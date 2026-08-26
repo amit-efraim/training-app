@@ -1,5 +1,5 @@
 {
-  "version": 9.0,
+  "version": 10.0,
   "exercise_catalog": {
     "dry_rope_boxer_130": { "name": "Boxer Skip", "type": "dryland", "category": "aerobic", "equipment": "130g Rope", "notes": "Aerobic cadence ~130 RPM" },
     "dry_rope_flow_250": { "name": "Weighted Rope Flow", "type": "dryland", "category": "aerobic", "equipment": "250g Rope", "notes": "Rhythm and wrist snap" },
@@ -61,7 +61,7 @@
             { "category": "upper_strength", "prescription": "3 x 12 reps" }
           ],
           "pool": [{ "category": "rest", "prescription": "Rest or 15-20m recovery flush" }],
-          "run": [{ "category": "jog", "prescription": "20-25 min Zone 2 cruise" }]
+          "run": []
         },
         "mon": {
           "baseRpe": 7.5,
@@ -75,7 +75,7 @@
             { "category": "speed", "prescription": "4 x (4 x 25) @ 0:50 (18s -> 15s)" },
             { "category": "speed", "prescription": "6 x 15m dive/push-off max + 100m easy" }
           ],
-          "run": [{ "category": "vo2max", "prescription": "15 min jog + 4 x 20s strides" }]
+          "run": []
         },
         "tue": {
           "baseRpe": 8.5,
@@ -85,7 +85,7 @@
             { "category": "vo2max", "prescription": "3 mins relaxed rhythm" }
           ],
           "pool": [{ "category": "league", "prescription": "Team threshold & conditioning set" }],
-          "run": [{ "category": "rest", "prescription": "Rest legs" }]
+          "run": []
         },
         "wed": {
           "baseRpe": 6.5,
@@ -97,7 +97,7 @@
             { "category": "base", "prescription": "30 x 50 @ 1:30-1:40 (5 easy / 5 mod / 5 strong)" },
             { "category": "legs", "prescription": "16 x 25 @ 0:50 (4 Socks, 4 Naked, 4 Fins, 4 Fast)" }
           ],
-          "run": [{ "category": "jog", "prescription": "20-30 min steady jog" }]
+          "run": []
         },
         "thu": {
           "baseRpe": 6.0,
@@ -111,7 +111,7 @@
             { "category": "technique", "prescription": "4 x 100 + 4 x 25 @ 2:00 / 0:40 (Smooth DPS)" },
             { "category": "legs", "prescription": "400 kick with fins (Every 4th fast)" }
           ],
-          "run": [{ "category": "jog", "prescription": "20 min relaxed pace" }]
+          "run": []
         },
         "fri": {
           "baseRpe": 2.0,
@@ -120,13 +120,13 @@
             { "category": "mobility", "prescription": "2 x 40s/side" }
           ],
           "pool": [{ "category": "rest", "prescription": "Full pool recovery" }],
-          "run": [{ "category": "jog", "prescription": "20 min light pace" }]
+          "run": []
         },
         "sat": {
           "baseRpe": 1.0,
           "dryland": [{ "category": "rest", "prescription": "Complete rest" }],
           "pool": [{ "category": "rest", "prescription": "Zero volume" }],
-          "run": [{ "category": "rest", "prescription": "Recovery" }]
+          "run": []
         }
       }
     },
@@ -143,7 +143,7 @@
             { "category": "core", "prescription": "4 sets: 10 reps + 30s hold" }
           ],
           "pool": [{ "category": "rest", "prescription": "20 min loose drills or rest" }],
-          "run": [{ "category": "jog", "prescription": "25-35 min Zone 2 cruise" }]
+          "run": []
         },
         "mon": {
           "baseRpe": 8.0,
@@ -157,7 +157,7 @@
             { "category": "vo2max", "prescription": "10 x 100 @ 2:30 (High DPS & threshold pace)" },
             { "category": "speed", "prescription": "8 x 25 with fins @ 0:55 + 100m flush" }
           ],
-          "run": [{ "category": "vo2max", "prescription": "20 min easy + 6 x 20s strides" }]
+          "run": []
         },
         "tue": {
           "baseRpe": 8.5,
@@ -167,7 +167,7 @@
             { "category": "vo2max", "prescription": "4 mins relaxed bounce" }
           ],
           "pool": [{ "category": "league", "prescription": "Threshold & race-pace conditioning" }],
-          "run": [{ "category": "rest", "prescription": "Rest legs" }]
+          "run": []
         },
         "wed": {
           "baseRpe": 7.0,
@@ -179,7 +179,7 @@
             { "category": "base", "prescription": "Pyramid: 100-200-300-200-100 @ 1:45/100m" },
             { "category": "legs", "prescription": "20 x 25 @ 0:50 (5 Socks, 5 Naked, 5 Fins, 5 Fast)" }
           ],
-          "run": [{ "category": "jog", "prescription": "25-35 min steady jog" }]
+          "run": []
         },
         "thu": {
           "baseRpe": 6.5,
@@ -193,7 +193,7 @@
             { "category": "technique", "prescription": "8 x 75 @ 1:40 (25 fast kick fins + 50 stroke)" },
             { "category": "legs", "prescription": "400 kick with fins (Every 3rd fast)" }
           ],
-          "run": [{ "category": "jog", "prescription": "20 min relaxed pace" }]
+          "run": []
         },
         "fri": {
           "baseRpe": 2.0,
@@ -202,13 +202,13 @@
             { "category": "mobility", "prescription": "2 x 45s/side" }
           ],
           "pool": [{ "category": "rest", "prescription": "Full recovery" }],
-          "run": [{ "category": "jog", "prescription": "25 min light pace" }]
+          "run": []
         },
         "sat": {
           "baseRpe": 1.0,
           "dryland": [{ "category": "rest", "prescription": "Complete rest" }],
           "pool": [{ "category": "rest", "prescription": "Zero volume" }],
-          "run": [{ "category": "rest", "prescription": "Recovery" }]
+          "run": []
         }
       }
     },
@@ -225,7 +225,7 @@
             { "category": "core", "prescription": "3 x 20 reps" }
           ],
           "pool": [{ "category": "rest", "prescription": "15 min loose recovery" }],
-          "run": [{ "category": "jog", "prescription": "20-25 min Zone 2 cruise" }]
+          "run": []
         },
         "mon": {
           "baseRpe": 8.5,
@@ -239,7 +239,7 @@
             { "category": "speed", "prescription": "2 x (8 x 25) @ 0:40 Race Pace" },
             { "category": "speed", "prescription": "4 x 25 all-out @ 1:15 + 100m flush" }
           ],
-          "run": [{ "category": "vo2max", "prescription": "15 min jog + 6 x 20s strides" }]
+          "run": []
         },
         "tue": {
           "baseRpe": 9.0,
@@ -249,7 +249,7 @@
             { "category": "vo2max", "prescription": "4 x 30s double-under bursts" }
           ],
           "pool": [{ "category": "league", "prescription": "League conditioning set" }],
-          "run": [{ "category": "rest", "prescription": "Rest legs" }]
+          "run": []
         },
         "wed": {
           "baseRpe": 7.5,
@@ -261,7 +261,7 @@
             { "category": "vo2max", "prescription": "20 x 50 @ 1:40 (Max sustainable speed)" },
             { "category": "legs", "prescription": "Triad: 30s Vert Kick + 50 Kick + 50 Swim" }
           ],
-          "run": [{ "category": "jog", "prescription": "20-30 min Zone 2 jog" }]
+          "run": []
         },
         "thu": {
           "baseRpe": 7.0,
@@ -275,7 +275,7 @@
             { "category": "technique", "prescription": "4 x 100 + 4 x 25 @ 2:00 / 0:40 (Build to race pace)" },
             { "category": "legs", "prescription": "400 kick with fins (Every 4th fast)" }
           ],
-          "run": [{ "category": "jog", "prescription": "20 min relaxed pace" }]
+          "run": []
         },
         "fri": {
           "baseRpe": 2.0,
@@ -284,13 +284,13 @@
             { "category": "mobility", "prescription": "2 x 45s/side" }
           ],
           "pool": [{ "category": "rest", "prescription": "Full pool recovery" }],
-          "run": [{ "category": "jog", "prescription": "20 min light pace" }]
+          "run": []
         },
         "sat": {
           "baseRpe": 1.0,
           "dryland": [{ "category": "rest", "prescription": "Complete rest" }],
           "pool": [{ "category": "rest", "prescription": "Zero volume" }],
-          "run": [{ "category": "rest", "prescription": "Recovery" }]
+          "run": []
         }
       }
     },
@@ -306,7 +306,7 @@
             { "category": "core", "prescription": "3 x 20s hollow holds" }
           ],
           "pool": [{ "category": "rest", "prescription": "Full joint decompression" }],
-          "run": [{ "category": "jog", "prescription": "15-20 min light shakeout" }]
+          "run": []
         },
         "mon": {
           "baseRpe": 4.5,
@@ -319,7 +319,7 @@
             { "category": "speed", "prescription": "4 x 25 @ 1:00 (Hold smooth 16s, no strain)" },
             { "category": "technique", "prescription": "200m easy DPS cruise" }
           ],
-          "run": [{ "category": "rest", "prescription": "Recovery focus" }]
+          "run": []
         },
         "tue": {
           "baseRpe": 7.0,
@@ -328,7 +328,7 @@
             { "category": "upper_strength", "prescription": "2 x 12 reps" }
           ],
           "pool": [{ "category": "league", "prescription": "Controlled effort / technical focus" }],
-          "run": [{ "category": "rest", "prescription": "No run" }]
+          "run": []
         },
         "wed": {
           "baseRpe": 4.5,
@@ -340,7 +340,7 @@
             { "category": "base", "prescription": "15 x 50 @ 1:40 (Smooth long-axis freestyle)" },
             { "category": "legs", "prescription": "300m continuous kick with fins @ Zone 2" }
           ],
-          "run": [{ "category": "jog", "prescription": "Light walk or 15m jog" }]
+          "run": []
         },
         "thu": {
           "baseRpe": 4.0,
@@ -350,7 +350,7 @@
             { "category": "upper_strength", "prescription": "2 x 12 reps" }
           ],
           "pool": [{ "category": "technique", "prescription": "4 x 100 @ 2:15 (Sculling / catch-up / fist drill)" }],
-          "run": [{ "category": "jog", "prescription": "15m very easy recovery" }]
+          "run": []
         },
         "fri": {
           "baseRpe": 1.5,
@@ -359,13 +359,13 @@
             { "category": "mobility", "prescription": "2 x 35s/side" }
           ],
           "pool": [{ "category": "rest", "prescription": "Full recovery" }],
-          "run": [{ "category": "rest", "prescription": "Recovery" }]
+          "run": []
         },
         "sat": {
           "baseRpe": 1.0,
           "dryland": [{ "category": "rest", "prescription": "Complete rest" }],
           "pool": [{ "category": "rest", "prescription": "Zero volume" }],
-          "run": [{ "category": "rest", "prescription": "Recovery" }]
+          "run": []
         }
       }
     }
