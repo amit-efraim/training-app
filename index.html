@@ -81,7 +81,7 @@
 
   <header>
     <div>
-      <h1>Adaptive System: Engine Active</h1>
+      <h1>Adaptive System: Dynamic Randomizer</h1>
     </div>
     <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
       <div class="nav-tabs">
@@ -174,7 +174,7 @@
               <strong id="plannedRpeDisplay">--</strong>
             </div>
             <div>
-              <span style="font-size: 0.8rem; color: var(--text-muted); display: block;">Logged RPE</span>
+              <span style="font-size: 0.8rem; color: var(--text-muted); display: block;">Avg Logged RPE</span>
               <strong id="loggedRpeDisplay">--</strong>
             </div>
           </div>
@@ -182,16 +182,9 @@
           <form onsubmit="handleLogSubmit(event)">
             <div id="sessionLoggers"></div>
 
-            <div class="form-group" style="margin-top:12px;">
-              <label>Overall Session RPE (1-10)</label>
-              <div style="display: flex; gap: 10px; align-items: center;">
-                <input type="range" id="rpeSlider" min="1" max="10" value="6" oninput="document.getElementById('rpeValText').innerText = this.value" style="flex: 1;" />
-                <strong id="rpeValText" style="color: var(--primary); font-size: 1.2rem; min-width: 24px;">6</strong>
-              </div>
-            </div>
-            <div class="form-group">
-              <label>Session Notes</label>
-              <textarea id="logNotes" rows="2" placeholder="Notes..."></textarea>
+            <div class="form-group" style="margin-top:16px;">
+              <label>Overall Session Notes</label>
+              <textarea id="logNotes" rows="2" placeholder="Shoulders feeling tired, turnover was fast..."></textarea>
             </div>
             <button type="submit" class="btn" style="width: 100%;">Save Log & Update Buffer</button>
           </form>
@@ -265,7 +258,8 @@
       { id: "first_log", icon: "🚀", title: "First Splash", desc: "Log your first session" },
       { id: "streak_7", icon: "🔥", title: "Iron Habit", desc: "Achieve a 7-day streak" },
       { id: "threshold_reached", icon: "🌋", title: "Buffer Smasher", desc: "Trigger a deload" },
-      { id: "runner_swimmer", icon: "🏃‍♂️", title: "Dual Athlete", desc: "Complete Run & Swim" }
+      { id: "runner_swimmer", icon: "🏃‍♂️", title: "Dual Athlete", desc: "Complete Run & Swim" },
+      { id: "shield_saver", icon: "🛡️", title: "Shield Veteran", desc: "Preserve a streak using a shield" }
     ];
 
     const LOAD_BUFFER_THRESHOLD = 400;
@@ -328,16 +322,9 @@
           const usedIds = new Set();
           if(plan.days[dayId][type]) {
             plan.days[dayId][type].forEach(slot => {
-               // 1. Find candidates matching Type and Category
-               let candidates = Object.keys(catalog).filter(id => 
-                 catalog[id].type === type && catalog[id].category === slot.category
-               );
-
-               // 2. Filter out items flagged as excluded, unless it leaves us empty (e.g. League/Run)
+               let candidates = Object.keys(catalog).filter(id => catalog[id].type === type && catalog[id].category === slot.category);
                let nonExcluded = candidates.filter(id => !catalog[id].excludeFromRandom);
                if (nonExcluded.length > 0) candidates = nonExcluded;
-               
-               // 3. Prevent duplicating exercises in the same session
                let unused = candidates.filter(id => !usedIds.has(id));
                if (unused.length > 0) candidates = unused;
                
@@ -361,7 +348,7 @@
       Object.entries(state.logs).forEach(([key, entry]) => {
         if (key.startsWith(`c${state.currentCycle}_`) && entry.sessionStatus && entry.sessionStatus.overall !== 'missed') {
             const ratio = entry.completionRatio !== undefined ? entry.completionRatio : 1;
-            total += (entry.rpe || 5) * 10 * ratio;
+            total += (entry.rpe || 5) * 10 * ratio; // Using the average RPE recorded in the log
         }
       });
       state.engine.accumulatedLoad = total;
@@ -434,32 +421,90 @@
       });
     }
 
+    /* SPECIFIC WORKOUT RPE LOGIC */
+    window.toggleRpe = function(key) {
+      const status = document.getElementById(`status_${key}`).value;
+      const container = document.getElementById(`rpe_container_${key}`);
+      if(container) {
+          container.style.display = (status === 'missed') ? 'none' : 'flex';
+      }
+      updateOverallRpe();
+    };
+
+    window.updateOverallRpe = function() {
+      let sum = 0;
+      let count = 0;
+      ['dryland', 'pool', 'run'].forEach(key => {
+          const statusEl = document.getElementById(`status_${key}`);
+          const rpeEl = document.getElementById(`rpe_${key}`);
+          if (statusEl && rpeEl && statusEl.value !== 'missed') {
+              sum += parseFloat(rpeEl.value);
+              count++;
+          }
+      });
+      const avgDisplay = document.getElementById("liveAvgRpe");
+      if (avgDisplay) {
+          avgDisplay.innerText = count > 0 ? (sum / count).toFixed(1) : "--";
+      }
+    };
+
     function renderSessionLoggers(dayData, existingLog) {
       const container = document.getElementById("sessionLoggers");
       container.innerHTML = "";
       const statuses = existingLog ? (existingLog.sessionStatus || {}) : {};
+      const rpes = existingLog ? (existingLog.sessionRpes || {}) : {};
+      const plannedRpe = Math.round(dayData.baseRpe || 5);
+      
+      let hasScheduled = false;
 
-      const renderDropdown = (key, label) => {
+      const renderLogger = (key, label) => {
         if (!dayData[key] || dayData[key].length === 0) return;
-        const val = statuses[key] || "completed";
+        hasScheduled = true;
+        const statusVal = statuses[key] || "completed";
+        const rpeVal = rpes[key] || plannedRpe;
+        
         container.innerHTML += `
-          <div class="form-group" style="border-left: 2px solid var(--primary); padding-left: 8px; margin-bottom: 8px;">
-            <label>${label} Completion</label>
-            <select id="status_${key}">
-              <option value="completed" ${val==='completed'?'selected':''}>Completed</option>
-              <option value="modified" ${val==='modified'?'selected':''}>Modified</option>
-              <option value="missed" ${val==='missed'?'selected':''}>Missed / Skipped</option>
-            </select>
+          <div class="form-group" style="border-left: 2px solid var(--primary); padding-left: 10px; margin-bottom: 12px; background: rgba(15, 23, 42, 0.4); padding: 10px; border-radius: 6px;">
+            <label style="color: #fff; font-size: 0.95rem; margin-bottom: 6px;">${label}</label>
+            <div style="display: flex; gap: 10px; margin-bottom: 8px;">
+                <select id="status_${key}" style="flex: 1; border-color: var(--primary);" onchange="toggleRpe('${key}')">
+                  <option value="completed" ${statusVal==='completed'?'selected':''}>Completed</option>
+                  <option value="modified" ${statusVal==='modified'?'selected':''}>Modified</option>
+                  <option value="missed" ${statusVal==='missed'?'selected':''}>Missed / Skipped</option>
+                </select>
+            </div>
+            <div id="rpe_container_${key}" style="display: ${statusVal==='missed' ? 'none' : 'flex'}; gap: 10px; align-items: center;">
+                <span style="font-size: 0.8rem; color: var(--text-muted); width: 40px;">RPE:</span>
+                <input type="range" id="rpe_${key}" min="1" max="10" value="${rpeVal}" oninput="document.getElementById('rpe_val_${key}').innerText = this.value; updateOverallRpe();" style="flex: 1;" />
+                <strong id="rpe_val_${key}" style="color: var(--primary); font-size: 1.1rem; min-width: 20px; text-align: right;">${rpeVal}</strong>
+            </div>
           </div>
         `;
       };
 
-      renderDropdown('dryland', 'Dryland Session');
-      renderDropdown('pool', 'Pool Session');
-      renderDropdown('run', 'Run Session');
+      renderLogger('dryland', 'Dryland Session');
+      renderLogger('pool', 'Pool Session');
+      renderLogger('run', 'Run Session');
 
-      if (container.innerHTML === "") {
-        container.innerHTML = `<div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:12px;">Rest Day. Log recovery RPE to maintain streak.</div>`;
+      if (!hasScheduled) {
+        const restRpe = existingLog ? existingLog.rpe : plannedRpe;
+        container.innerHTML = `
+          <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:12px;">Rest Day Scheduled. Maintain habit by logging recovery check-in.</div>
+          <div class="form-group">
+            <label>Daily Readiness / Recovery RPE (1-10)</label>
+            <div style="display: flex; gap: 10px; align-items: center; margin-top: 6px;">
+              <input type="range" id="rpe_rest" min="1" max="10" value="${restRpe}" oninput="document.getElementById('rpe_val_rest').innerText = this.value;" style="flex: 1;" />
+              <strong id="rpe_val_rest" style="color: var(--primary); font-size: 1.2rem; min-width: 24px; text-align: right;">${restRpe}</strong>
+            </div>
+          </div>
+        `;
+      } else {
+         container.innerHTML += `
+           <div id="averageRpeDisplay" style="margin-top: 16px; font-size: 1rem; text-align: center; background: rgba(56, 189, 248, 0.1); padding: 8px; border-radius: 6px; border: 1px dashed var(--primary);">
+             Calculated Average RPE: <strong id="liveAvgRpe" style="font-size: 1.15rem;">--</strong>
+           </div>
+         `;
+         setTimeout(updateOverallRpe, 0); // Init live average display
       }
     }
 
@@ -484,17 +529,13 @@
       document.getElementById("plannedRpeDisplay").innerText = plannedRpe;
 
       if (existingLog) {
-        document.getElementById("loggedRpeDisplay").innerText = existingLog.rpe;
-        document.getElementById("rpeSlider").value = existingLog.rpe;
-        document.getElementById("rpeValText").innerText = existingLog.rpe;
+        document.getElementById("loggedRpeDisplay").innerText = Number(existingLog.rpe).toFixed(1);
         document.getElementById("logNotes").value = existingLog.notes || "";
-        document.getElementById("adaptiveFeedback").innerHTML = `Logged. Delta: ${(existingLog.rpe - plannedRpe).toFixed(1)}`;
+        document.getElementById("adaptiveFeedback").innerHTML = `Logged. Delta vs Target: ${(existingLog.rpe - plannedRpe).toFixed(1)}`;
       } else {
         document.getElementById("loggedRpeDisplay").innerText = "--";
-        document.getElementById("rpeSlider").value = Math.round(plannedRpe);
-        document.getElementById("rpeValText").innerText = Math.round(plannedRpe);
         document.getElementById("logNotes").value = "";
-        document.getElementById("adaptiveFeedback").innerHTML = `<strong>Target RPE is ${plannedRpe}.</strong>`;
+        document.getElementById("adaptiveFeedback").innerHTML = `<strong>Target Baseline RPE is ${plannedRpe}.</strong>`;
       }
     }
 
@@ -525,24 +566,38 @@
       const logKey = `${planKey}_${state.currentDay}`;
       const dayData = state.generatedPlans[planKey].days[state.currentDay];
       const plannedRpe = (dayData.baseRpe || 0);
-      const rpe = parseFloat(document.getElementById("rpeSlider").value);
       const notes = document.getElementById("logNotes").value;
 
       const sessionStatus = {};
+      const sessionRpes = {};
       let scheduledCount = 0; let completedCount = 0;
+      let sumRpe = 0;
 
       ['dryland', 'pool', 'run'].forEach(key => {
         const el = document.getElementById(`status_${key}`);
         if (el) {
-          sessionStatus[key] = el.value;
+          const status = el.value;
+          sessionStatus[key] = status;
           scheduledCount++;
-          if (el.value === 'completed' || el.value === 'modified') completedCount++;
+          if (status === 'completed' || status === 'modified') {
+            completedCount++;
+            const rpeVal = parseFloat(document.getElementById(`rpe_${key}`).value);
+            sessionRpes[key] = rpeVal;
+            sumRpe += rpeVal;
+          }
         }
       });
 
       const isRestDay = (scheduledCount === 0);
       const completionRatio = isRestDay ? 1.0 : (completedCount / scheduledCount);
       const isNewLog = !state.logs[logKey];
+      
+      let finalRpe = 0;
+      if (isRestDay) {
+          finalRpe = parseFloat(document.getElementById("rpe_rest").value);
+      } else {
+          finalRpe = completedCount > 0 ? (sumRpe / completedCount) : 0;
+      }
 
       if (completionRatio === 0 && !isRestDay) {
         if (state.gamify.shields > 0) {
@@ -565,7 +620,7 @@
         sessionStatus.overall = "completed";
       }
 
-      state.logs[logKey] = { rpe, rpeDelta: rpe - plannedRpe, sessionStatus, completionRatio, notes, timestamp: new Date().toISOString() };
+      state.logs[logKey] = { rpe: finalRpe, sessionRpes, rpeDelta: finalRpe - plannedRpe, sessionStatus, completionRatio, notes, timestamp: new Date().toISOString() };
       markLocalModified(); calculateAccumulatedLoad(); saveState(); init();
     }
 
@@ -602,36 +657,31 @@
     }
 
     /* Modal / Category Extractor Editor */
-    function populateCategoryDropdown(type, selectedCategory = "") {
+    window.populateCategoryDropdown = function(type, selectedCategory = "") {
       const select = document.getElementById("modalCategorySelect");
       select.innerHTML = "";
-      
       const catalog = appData.exercise_catalog || {};
       const categories = new Set();
       Object.values(catalog).forEach(ex => { if (ex.type === type) categories.add(ex.category); });
-      
       Array.from(categories).sort().forEach(cat => {
         const opt = document.createElement("option");
-        opt.value = cat;
-        opt.innerText = cat.replace("_", " ").toUpperCase();
+        opt.value = cat; opt.innerText = cat.replace("_", " ").toUpperCase();
         if (cat === selectedCategory) opt.selected = true;
         select.appendChild(opt);
       });
       populateGroupedDropdown(); // cascade
     }
 
-    function populateGroupedDropdown(selectedId = "") {
+    window.populateGroupedDropdown = function(selectedId = "") {
       const type = document.getElementById("modalType").value;
       const category = document.getElementById("modalCategorySelect").value;
       const select = document.getElementById("modalExerciseSelect");
       select.innerHTML = `<option value="" disabled ${!selectedId ? 'selected' : ''}>-- Choose Exercise --</option>`;
-      
       const catalog = appData.exercise_catalog || {};
       Object.entries(catalog).forEach(([id, ex]) => {
         if (ex.type === type && ex.category === category) {
           const opt = document.createElement("option");
-          opt.value = id;
-          opt.innerText = ex.name;
+          opt.value = id; opt.innerText = ex.name;
           if (id === selectedId) opt.selected = true;
           select.appendChild(opt);
         }
@@ -650,7 +700,6 @@
     function openEditExerciseModal(type, index) {
       const planKey = `c${state.currentCycle}_w${state.currentWeek}`;
       const item = state.generatedPlans[planKey].days[state.currentDay][type][index];
-      
       document.getElementById("modalType").value = type;
       document.getElementById("modalEditIndex").value = index;
       document.getElementById("modalTitle").innerText = `Edit ${type.toUpperCase()}`;
