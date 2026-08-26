@@ -35,6 +35,7 @@
     .badge { display: inline-block; padding: 3px 8px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; }
     .badge-load { background: #1e3a8a; color: #93c5fd; }
     .badge-deload { background: #064e3b; color: #86efac; }
+    .badge-peak { background: #7f1d1d; color: #fca5a5; }
     .day-selector { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-bottom: 20px; }
     .day-btn { background: var(--card-bg); border: 1px solid var(--card-border); color: var(--text); padding: 10px; border-radius: 8px; cursor: pointer; text-align: center; }
     .day-btn.active { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
@@ -74,21 +75,18 @@
     .achievement-card .desc { font-size: 0.65rem; color: var(--text-muted); }
     .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 100; }
     .modal { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 10px; padding: 20px; width: 90%; max-width: 500px; }
-    .table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.85rem; }
-    .table th, .table td { border: 1px solid var(--card-border); padding: 8px; text-align: left; }
-    .table th { background: #0f172a; color: var(--primary); }
   </style>
 </head>
 <body>
 
   <header>
     <div>
-      <h1>Adaptive System: Cloud Linked</h1>
+      <h1>Adaptive System: Engine Active</h1>
     </div>
     <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
       <div class="nav-tabs">
         <button class="tab-btn active" id="tabPlanner" onclick="switchView('planner')">Planner</button>
-        <button class="tab-btn" id="tabAchievements" onclick="switchView('achievements')">Badges & XP</button>
+        <button class="tab-btn" id="tabAchievements" onclick="switchView('achievements')">Badges</button>
         <button class="tab-btn" id="tabDatabase" onclick="switchView('database')">Database Sync</button>
       </div>
       <div class="cycle-control" id="cycleControls">
@@ -143,24 +141,21 @@
           </h2>
           
           <div class="section-header">
-            <span class="section-title">Morning Dryland Routine</span>
+            <span class="section-title">Dryland Session</span>
             <button class="btn btn-secondary btn-sm" onclick="openAddExerciseModal('dryland')">+ Add</button>
           </div>
-          <div id="drylandFocus" style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 6px;"></div>
           <ul class="exercise-list" id="drylandList"></ul>
 
           <div class="section-header" style="margin-top: 18px;">
             <span class="section-title">Pool Session</span>
             <button class="btn btn-secondary btn-sm" onclick="openAddExerciseModal('pool')">+ Add</button>
           </div>
-          <div id="poolFocus" style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 6px;"></div>
           <ul class="exercise-list" id="poolList"></ul>
 
           <div class="section-header" style="margin-top: 18px;">
             <span class="section-title running">Run Session</span>
             <button class="btn btn-secondary btn-sm" onclick="openAddExerciseModal('run')">+ Add</button>
           </div>
-          <div id="runFocus" style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 6px;"></div>
           <ul class="exercise-list" id="runList"></ul>
 
           <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--card-border); display: flex; justify-content: space-between; align-items: center;">
@@ -185,7 +180,6 @@
           </div>
 
           <form onsubmit="handleLogSubmit(event)">
-            <!-- Granular Session Loggers injected here -->
             <div id="sessionLoggers"></div>
 
             <div class="form-group" style="margin-top:12px;">
@@ -218,37 +212,38 @@
     <div class="card">
       <h2>Google Drive Smart Sync</h2>
       <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">Authenticate with Google to read/write your encrypted database directly to your personal Drive.</p>
-      
       <div class="form-group" style="margin-bottom: 16px;">
         <label>Google OAuth Client ID</label>
         <input type="text" id="gcpClientId" placeholder="YOUR_CLIENT_ID.apps.googleusercontent.com" />
       </div>
-
       <div style="display: flex; gap: 8px; flex-wrap: wrap;">
         <button class="btn btn-success btn-sm" onclick="saveClientId()">Save ID</button>
         <button class="btn btn-primary btn-sm" onclick="triggerSmartSync()">🔄 Smart Sync with Drive</button>
         <button class="btn btn-secondary btn-sm" onclick="loadDataFromClipboard()">Load External JSON manually</button>
       </div>
       <div id="syncStatus" style="font-size: 0.85rem; margin-top: 12px; color: var(--warning);"></div>
-      <textarea id="jsonArea" rows="4" style="width: 100%; margin-top: 12px; font-family: monospace; font-size: 0.8rem;"></textarea>
+      <textarea id="jsonArea" rows="6" style="width: 100%; margin-top: 12px; font-family: monospace; font-size: 0.8rem;"></textarea>
     </div>
   </div>
 
-  <!-- AUTOCOMPLETE MODAL -->
+  <!-- DROPDOWN MODAL -->
   <div class="modal-backdrop" id="exerciseModal">
     <div class="modal">
-      <h2 id="modalTitle" style="margin-bottom: 12px; font-size: 1.1rem; color: var(--primary);">Add Entry</h2>
+      <h2 id="modalTitle" style="margin-bottom: 12px; font-size: 1.1rem; color: var(--primary);">Add / Edit Exercise</h2>
       <form onsubmit="saveModalExercise(event)">
         <input type="hidden" id="modalType" />
         <input type="hidden" id="modalEditIndex" value="-1" />
         <div class="form-group">
-          <label>Title / Movement Name</label>
-          <input type="text" id="modalName" list="exerciseLibrary" oninput="autoFillMeta()" required autocomplete="off" />
-          <datalist id="exerciseLibrary"></datalist>
+          <label>Select Required Category</label>
+          <select id="modalCategorySelect" onchange="populateGroupedDropdown()"></select>
         </div>
         <div class="form-group">
-          <label>Details / Prescription</label>
-          <input type="text" id="modalMeta" required />
+          <label>Select Exercise</label>
+          <select id="modalExerciseSelect" required></select>
+        </div>
+        <div class="form-group">
+          <label>Blueprint Prescription / Volume</label>
+          <input type="text" id="modalPrescription" placeholder="e.g. 4 x 5 reps" required />
         </div>
         <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px;">
           <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
@@ -259,47 +254,26 @@
   </div>
 
   <script>
-    /* =========================================================================
-       EMPTY STRUCTURAL SKELETON
-       ========================================================================= */
-    const EMPTY_SKELETON = {
-      version: 6.0,
-      week1: { phaseName: "Empty Database", badge: "badge-load", days: {} },
-      week2: { phaseName: "Empty Database", badge: "badge-load", days: {} },
-      week3: { phaseName: "Empty Database", badge: "badge-load", days: {} },
-      deload: { phaseName: "Empty Database", badge: "badge-deload", days: {} }
-    };
-    
     const DAYS = [
       { id: "sun", name: "Sunday", short: "Sun" }, { id: "mon", name: "Monday", short: "Mon" },
       { id: "tue", name: "Tuesday", short: "Tue" }, { id: "wed", name: "Wednesday", short: "Wed" },
       { id: "thu", name: "Thursday", short: "Thu" }, { id: "fri", name: "Friday", short: "Fri" },
       { id: "sat", name: "Saturday", short: "Sat" }
     ];
-    
-    DAYS.forEach(d => {
-      EMPTY_SKELETON.week1.days[d.id] = { dryland: [], pool: [], run: [], baseRpe: 5.0 };
-      EMPTY_SKELETON.week2.days[d.id] = { dryland: [], pool: [], run: [], baseRpe: 5.0 };
-      EMPTY_SKELETON.week3.days[d.id] = { dryland: [], pool: [], run: [], baseRpe: 5.0 };
-      EMPTY_SKELETON.deload.days[d.id] = { dryland: [], pool: [], run: [], baseRpe: 3.0 };
-    });
 
     const ACHIEVEMENTS_DATA = [
       { id: "first_log", icon: "🚀", title: "First Splash", desc: "Log your first session" },
       { id: "streak_7", icon: "🔥", title: "Iron Habit", desc: "Achieve a 7-day streak" },
-      { id: "heavy_puller", icon: "⛓️", title: "Heavy Belt", desc: "Log Week 3 +10kg pull-ups" },
       { id: "threshold_reached", icon: "🌋", title: "Buffer Smasher", desc: "Trigger a deload" },
-      { id: "runner_swimmer", icon: "🏃‍♂️", title: "Dual Athlete", desc: "Complete Run & Swim" },
-      { id: "shield_saver", icon: "🛡️", title: "Shield Veteran", desc: "Preserve a streak using a shield" }
+      { id: "runner_swimmer", icon: "🏃‍♂️", title: "Dual Athlete", desc: "Complete Run & Swim" }
     ];
 
     const LOAD_BUFFER_THRESHOLD = 400;
-    window.currentLibrary = new Map(); // For autocomplete
 
-    let phasedDB = JSON.parse(localStorage.getItem("swim_tracker_phased_db"));
-    if (!phasedDB || phasedDB.version !== 6.0) {
-        phasedDB = JSON.parse(JSON.stringify(EMPTY_SKELETON));
-        localStorage.setItem("swim_tracker_phased_db", JSON.stringify(phasedDB));
+    let appData = JSON.parse(localStorage.getItem("swim_tracker_app_data"));
+    if (!appData || appData.version !== 9.0) {
+      appData = { version: 9.0, exercise_catalog: {}, mesocycle_structure: {} };
+      localStorage.setItem("swim_tracker_app_data", JSON.stringify(appData));
     }
 
     let state = {
@@ -307,6 +281,7 @@
       logs: JSON.parse(localStorage.getItem("swim_tracker_logs")) || {},
       engine: JSON.parse(localStorage.getItem("swim_tracker_engine")) || { accumulatedLoad: 0, isDeload: false },
       gamify: JSON.parse(localStorage.getItem("swim_tracker_gamify")) || { xp: 0, streak: 0, shields: 2, unlocked: [] },
+      generatedPlans: JSON.parse(localStorage.getItem("swim_tracker_generated_plans")) || {},
       localModified: parseInt(localStorage.getItem("swim_tracker_local_mod")) || Date.now(),
       lastSynced: parseInt(localStorage.getItem("swim_tracker_last_sync")) || 0
     };
@@ -318,30 +293,75 @@
 
     function init() {
       document.getElementById("gcpClientId").value = localStorage.getItem("gdrive_client_id") || "";
+      ensurePlanExists(state.currentCycle, state.currentWeek);
       calculateAccumulatedLoad();
       updateDynamicWeekButtons();
       renderHUD();
       renderDaySelector();
       renderDayView();
       renderAchievements();
-      document.getElementById("jsonArea").value = JSON.stringify(phasedDB, null, 2);
+      document.getElementById("jsonArea").value = JSON.stringify(appData, null, 2);
     }
 
-    function getActivePhaseKey() {
-      if (state.engine.isDeload) return "deload";
-      if (state.currentWeek === 1) return "week1";
-      if (state.currentWeek === 2) return "week2";
+    function getActivePhaseKey(week, isDeload) {
+      if (isDeload) return "deload";
+      if (week === 1) return "week1";
+      if (week === 2) return "week2";
       return "week3";
+    }
+
+    /* THE RANDOMIZATION ENGINE */
+    function ensurePlanExists(cycle, week) {
+      const key = `c${cycle}_w${week}`;
+      if (!state.generatedPlans) state.generatedPlans = {};
+      if (state.generatedPlans[key]) return; // Week already rolled
+
+      const phaseKey = getActivePhaseKey(week, state.engine.isDeload);
+      const blueprint = appData.mesocycle_structure[phaseKey];
+      if (!blueprint) return; 
+
+      const plan = JSON.parse(JSON.stringify(blueprint)); 
+      const catalog = appData.exercise_catalog || {};
+
+      Object.keys(plan.days).forEach(dayId => {
+        ['dryland', 'pool', 'run'].forEach(type => {
+          const usedIds = new Set();
+          if(plan.days[dayId][type]) {
+            plan.days[dayId][type].forEach(slot => {
+               // 1. Find candidates matching Type and Category
+               let candidates = Object.keys(catalog).filter(id => 
+                 catalog[id].type === type && catalog[id].category === slot.category
+               );
+
+               // 2. Filter out items flagged as excluded, unless it leaves us empty (e.g. League/Run)
+               let nonExcluded = candidates.filter(id => !catalog[id].excludeFromRandom);
+               if (nonExcluded.length > 0) candidates = nonExcluded;
+               
+               // 3. Prevent duplicating exercises in the same session
+               let unused = candidates.filter(id => !usedIds.has(id));
+               if (unused.length > 0) candidates = unused;
+               
+               if (candidates.length > 0) {
+                 const picked = candidates[Math.floor(Math.random() * candidates.length)];
+                 slot.exerciseId = picked;
+                 usedIds.add(picked);
+               } else {
+                 slot.exerciseId = null; 
+               }
+            });
+          }
+        });
+      });
+      state.generatedPlans[key] = plan;
+      saveState();
     }
 
     function calculateAccumulatedLoad() {
       let total = 0;
       Object.entries(state.logs).forEach(([key, entry]) => {
-        if (key.startsWith(`c${state.currentCycle}_`)) {
-          if (entry.sessionStatus && entry.sessionStatus.overall !== 'missed') {
-             const ratio = entry.completionRatio !== undefined ? entry.completionRatio : 1;
-             total += (entry.rpe || 5) * 10 * ratio;
-          }
+        if (key.startsWith(`c${state.currentCycle}_`) && entry.sessionStatus && entry.sessionStatus.overall !== 'missed') {
+            const ratio = entry.completionRatio !== undefined ? entry.completionRatio : 1;
+            total += (entry.rpe || 5) * 10 * ratio;
         }
       });
       state.engine.accumulatedLoad = total;
@@ -376,7 +396,14 @@
       if (view === "achievements") renderAchievements();
     }
 
-    function selectWeek(w) { state.currentWeek = w; updateDynamicWeekButtons(); renderDaySelector(); renderDayView(); }
+    function selectWeek(w) { 
+      state.currentWeek = w; 
+      ensurePlanExists(state.currentCycle, state.currentWeek);
+      updateDynamicWeekButtons(); 
+      renderDaySelector(); 
+      renderDayView(); 
+    }
+
     function selectDay(d) { state.currentDay = d; renderDaySelector(); renderDayView(); }
 
     function renderHUD() {
@@ -413,9 +440,7 @@
       const statuses = existingLog ? (existingLog.sessionStatus || {}) : {};
 
       const renderDropdown = (key, label) => {
-        const isRest = dayData[key] && dayData[key].length > 0 && dayData[key][0].name.toLowerCase().includes("rest");
-        if (!dayData[key] || dayData[key].length === 0 || isRest) return;
-
+        if (!dayData[key] || dayData[key].length === 0) return;
         const val = statuses[key] || "completed";
         container.innerHTML += `
           <div class="form-group" style="border-left: 2px solid var(--primary); padding-left: 8px; margin-bottom: 8px;">
@@ -439,18 +464,16 @@
     }
 
     function renderDayView() {
-      const phaseKey = getActivePhaseKey();
-      const phaseData = phasedDB[phaseKey];
-      const dayData = phaseData.days[state.currentDay];
-      const existingLog = state.logs[`c${state.currentCycle}_w${state.currentWeek}_${state.currentDay}`];
+      const planKey = `c${state.currentCycle}_w${state.currentWeek}`;
+      const plan = state.generatedPlans[planKey];
+      if (!plan || !plan.days) return;
+
+      const dayData = plan.days[state.currentDay] || { dryland: [], pool: [], run: [], baseRpe: 1.0 };
+      const existingLog = state.logs[`${planKey}_${state.currentDay}`];
 
       document.getElementById("currentDayTitle").innerText = `${DAYS.find(d => d.id === state.currentDay).name} Plan`;
-      document.getElementById("weekPhaseBadge").className = `badge ${phaseData.badge}`;
-      document.getElementById("weekPhaseBadge").innerText = state.engine.isDeload ? "Deload Week: Recovery & Restoration" : `${phaseData.phaseName}`;
-
-      document.getElementById("drylandFocus").innerText = dayData.drylandFocus || "";
-      document.getElementById("poolFocus").innerText = dayData.poolFocus || "";
-      document.getElementById("runFocus").innerText = dayData.runFocus || "";
+      document.getElementById("weekPhaseBadge").className = `badge ${plan.badge}`;
+      document.getElementById("weekPhaseBadge").innerText = state.engine.isDeload ? "Deload Week: Recovery & Restoration" : `${plan.phaseName}`;
 
       renderExerciseList("dryland", dayData.dryland || []);
       renderExerciseList("pool", dayData.pool || []);
@@ -476,27 +499,37 @@
     }
 
     function renderExerciseList(type, list) {
-      document.getElementById(`${type}List`).innerHTML = list.map((item, index) => `
-        <li class="exercise-item ${type === 'run' ? 'running-item' : ''}">
-          <div><strong>${item.name}</strong><span class="meta">${item.meta}</span></div>
-          <div class="item-actions">
-            <button onclick="openEditExerciseModal('${type}', ${index})">✎</button>
-            <button class="del" onclick="deleteExercise('${type}', ${index})">✕</button>
-          </div>
-        </li>
-      `).join("");
+      const catalog = appData.exercise_catalog || {};
+      document.getElementById(`${type}List`).innerHTML = list.map((item, index) => {
+        if (!item.exerciseId || !catalog[item.exerciseId]) return `<li class="exercise-item"><div><strong>No matching exercise found in Catalog</strong><span class="meta">${item.category}</span></div></li>`;
+        const entry = catalog[item.exerciseId];
+        return `
+          <li class="exercise-item ${type === 'run' ? 'running-item' : ''}">
+            <div>
+              <strong>${entry.name}</strong>
+              <span class="meta" style="color:var(--accent); font-weight:600;">${item.category.toUpperCase().replace("_"," ")}</span>
+              <span class="meta">${item.prescription} ${entry.equipment !== 'None' ? `• ${entry.equipment}` : ''}</span>
+            </div>
+            <div class="item-actions">
+              <button onclick="openEditExerciseModal('${type}', ${index})">✎</button>
+              <button class="del" onclick="deleteExercise('${type}', ${index})">✕</button>
+            </div>
+          </li>
+        `;
+      }).join("");
     }
 
     function handleLogSubmit(e) {
       e.preventDefault();
-      const logKey = `c${state.currentCycle}_w${state.currentWeek}_${state.currentDay}`;
-      const plannedRpe = (phasedDB[getActivePhaseKey()].days[state.currentDay].baseRpe || 0);
+      const planKey = `c${state.currentCycle}_w${state.currentWeek}`;
+      const logKey = `${planKey}_${state.currentDay}`;
+      const dayData = state.generatedPlans[planKey].days[state.currentDay];
+      const plannedRpe = (dayData.baseRpe || 0);
       const rpe = parseFloat(document.getElementById("rpeSlider").value);
       const notes = document.getElementById("logNotes").value;
 
       const sessionStatus = {};
-      let scheduledCount = 0;
-      let completedCount = 0;
+      let scheduledCount = 0; let completedCount = 0;
 
       ['dryland', 'pool', 'run'].forEach(key => {
         const el = document.getElementById(`status_${key}`);
@@ -526,16 +559,14 @@
         if (isNewLog) {
           state.gamify.streak += 1;
           let earnedXp = isRestDay ? 30 : Math.round(100 * completionRatio);
-          if (sessionStatus.run === 'completed' || sessionStatus.run === 'modified') unlockBadge("runner_swimmer");
+          if (sessionStatus.run && sessionStatus.run !== 'missed') unlockBadge("runner_swimmer");
           state.gamify.xp += earnedXp;
         }
         sessionStatus.overall = "completed";
       }
 
       state.logs[logKey] = { rpe, rpeDelta: rpe - plannedRpe, sessionStatus, completionRatio, notes, timestamp: new Date().toISOString() };
-
-      markLocalModified(); calculateAccumulatedLoad();
-      saveState(); init();
+      markLocalModified(); calculateAccumulatedLoad(); saveState(); init();
     }
 
     function advanceWeekWorkflow() {
@@ -549,12 +580,11 @@
         if (state.currentWeek > state.activeWeeksInCycle) state.activeWeeksInCycle = state.currentWeek;
         if (state.currentWeek === 6) state.engine.isDeload = true;
       }
+      ensurePlanExists(state.currentCycle, state.currentWeek);
       markLocalModified(); saveState(); init(); selectDay("sun");
     }
 
-    function unlockBadge(id) {
-      if (!state.gamify.unlocked.includes(id)) { state.gamify.unlocked.push(id); markLocalModified(); saveState(); }
-    }
+    function unlockBadge(id) { if (!state.gamify.unlocked.includes(id)) { state.gamify.unlocked.push(id); markLocalModified(); saveState(); } }
     
     function renderAchievements() {
       document.getElementById("achievementsList").innerHTML = ACHIEVEMENTS_DATA.map(item => `
@@ -568,55 +598,65 @@
       localStorage.setItem("swim_tracker_logs", JSON.stringify(state.logs));
       localStorage.setItem("swim_tracker_engine", JSON.stringify(state.engine));
       localStorage.setItem("swim_tracker_gamify", JSON.stringify(state.gamify));
+      localStorage.setItem("swim_tracker_generated_plans", JSON.stringify(state.generatedPlans));
     }
 
-    function saveDatabase() {
-      localStorage.setItem("swim_tracker_phased_db", JSON.stringify(phasedDB));
-      markLocalModified();
-      document.getElementById("jsonArea").value = JSON.stringify(phasedDB, null, 2);
+    /* Modal / Category Extractor Editor */
+    function populateCategoryDropdown(type, selectedCategory = "") {
+      const select = document.getElementById("modalCategorySelect");
+      select.innerHTML = "";
+      
+      const catalog = appData.exercise_catalog || {};
+      const categories = new Set();
+      Object.values(catalog).forEach(ex => { if (ex.type === type) categories.add(ex.category); });
+      
+      Array.from(categories).sort().forEach(cat => {
+        const opt = document.createElement("option");
+        opt.value = cat;
+        opt.innerText = cat.replace("_", " ").toUpperCase();
+        if (cat === selectedCategory) opt.selected = true;
+        select.appendChild(opt);
+      });
+      populateGroupedDropdown(); // cascade
     }
 
-    /* Autocomplete Datalist Builder */
-    function populateDatalist(type) {
-      const list = document.getElementById("exerciseLibrary");
-      list.innerHTML = "";
-      window.currentLibrary.clear();
-
-      Object.values(phasedDB).forEach(phase => {
-        if(!phase.days) return;
-        Object.values(phase.days).forEach(day => {
-          (day[type] || []).forEach(ex => {
-            if (ex.name && !window.currentLibrary.has(ex.name)) {
-              window.currentLibrary.set(ex.name, ex.meta);
-              const opt = document.createElement("option");
-              opt.value = ex.name;
-              list.appendChild(opt);
-            }
-          });
-        });
+    function populateGroupedDropdown(selectedId = "") {
+      const type = document.getElementById("modalType").value;
+      const category = document.getElementById("modalCategorySelect").value;
+      const select = document.getElementById("modalExerciseSelect");
+      select.innerHTML = `<option value="" disabled ${!selectedId ? 'selected' : ''}>-- Choose Exercise --</option>`;
+      
+      const catalog = appData.exercise_catalog || {};
+      Object.entries(catalog).forEach(([id, ex]) => {
+        if (ex.type === type && ex.category === category) {
+          const opt = document.createElement("option");
+          opt.value = id;
+          opt.innerText = ex.name;
+          if (id === selectedId) opt.selected = true;
+          select.appendChild(opt);
+        }
       });
     }
 
-    function autoFillMeta() {
-      const name = document.getElementById("modalName").value;
-      if (window.currentLibrary.has(name)) {
-        document.getElementById("modalMeta").value = window.currentLibrary.get(name);
-      }
-    }
-
     function openAddExerciseModal(type) {
-      populateDatalist(type);
-      document.getElementById("modalType").value = type; document.getElementById("modalEditIndex").value = "-1";
+      document.getElementById("modalType").value = type;
+      document.getElementById("modalEditIndex").value = "-1";
       document.getElementById("modalTitle").innerText = `Add to ${type.toUpperCase()}`;
-      document.getElementById("modalName").value = ""; document.getElementById("modalMeta").value = "";
+      document.getElementById("modalPrescription").value = "";
+      populateCategoryDropdown(type);
       document.getElementById("exerciseModal").style.display = "flex";
     }
     
     function openEditExerciseModal(type, index) {
-      populateDatalist(type);
-      const item = phasedDB[getActivePhaseKey()].days[state.currentDay][type][index];
-      document.getElementById("modalType").value = type; document.getElementById("modalEditIndex").value = index;
-      document.getElementById("modalName").value = item.name; document.getElementById("modalMeta").value = item.meta;
+      const planKey = `c${state.currentCycle}_w${state.currentWeek}`;
+      const item = state.generatedPlans[planKey].days[state.currentDay][type][index];
+      
+      document.getElementById("modalType").value = type;
+      document.getElementById("modalEditIndex").value = index;
+      document.getElementById("modalTitle").innerText = `Edit ${type.toUpperCase()}`;
+      document.getElementById("modalPrescription").value = item.prescription || "";
+      populateCategoryDropdown(type, item.category);
+      populateGroupedDropdown(item.exerciseId);
       document.getElementById("exerciseModal").style.display = "flex";
     }
     
@@ -624,41 +664,49 @@
     
     function saveModalExercise(e) {
       e.preventDefault();
-      const type = document.getElementById("modalType").value, index = parseInt(document.getElementById("modalEditIndex").value);
-      const name = document.getElementById("modalName").value, meta = document.getElementById("modalMeta").value;
-      const arr = phasedDB[getActivePhaseKey()].days[state.currentDay][type];
-      if (index === -1) arr.push({ name, meta }); else arr[index] = { name, meta };
-      saveDatabase(); closeModal(); renderDayView();
+      const type = document.getElementById("modalType").value;
+      const index = parseInt(document.getElementById("modalEditIndex").value);
+      const category = document.getElementById("modalCategorySelect").value;
+      const exerciseId = document.getElementById("modalExerciseSelect").value;
+      const prescription = document.getElementById("modalPrescription").value;
+
+      const planKey = `c${state.currentCycle}_w${state.currentWeek}`;
+      const arr = state.generatedPlans[planKey].days[state.currentDay][type];
+      
+      if (index === -1) arr.push({ category, exerciseId, prescription });
+      else arr[index] = { category, exerciseId, prescription };
+      
+      markLocalModified(); saveState(); closeModal(); renderDayView();
     }
     
     function deleteExercise(type, index) {
-      phasedDB[getActivePhaseKey()].days[state.currentDay][type].splice(index, 1);
-      saveDatabase(); renderDayView();
+      const planKey = `c${state.currentCycle}_w${state.currentWeek}`;
+      state.generatedPlans[planKey].days[state.currentDay][type].splice(index, 1);
+      markLocalModified(); saveState(); renderDayView();
     }
     
     function loadDataFromClipboard() {
-      try { phasedDB = JSON.parse(document.getElementById("jsonArea").value); saveDatabase(); init(); alert("Loaded successfully!"); }
-      catch(e) { alert("Invalid JSON"); }
+      try { 
+        appData = JSON.parse(document.getElementById("jsonArea").value); 
+        localStorage.setItem("swim_tracker_app_data", JSON.stringify(appData));
+        init(); alert("Relational Database successfully loaded!"); 
+      } catch(e) { alert("Invalid JSON format."); }
     }
 
     /* GOOGLE DRIVE SMART SYNC */
     const SCOPES = 'https://www.googleapis.com/auth/drive.file';
     let tokenClient;
-
     function saveClientId() {
       const id = document.getElementById("gcpClientId").value.trim();
       if(id) { localStorage.setItem("gdrive_client_id", id); alert("Client ID Saved."); }
     }
-
     function updateSyncStatus(msg, isError=false) {
       const el = document.getElementById("syncStatus");
       el.innerText = msg; el.style.color = isError ? "var(--danger)" : "var(--success)";
     }
-
     function triggerSmartSync() {
       const clientId = localStorage.getItem("gdrive_client_id");
       if (!clientId) return updateSyncStatus("Please enter your Google Client ID first.", true);
-      
       updateSyncStatus("Authenticating with Google...");
       tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: clientId, scope: SCOPES,
@@ -669,36 +717,29 @@
       });
       tokenClient.requestAccessToken();
     }
-
     async function executeSmartSync(token) {
       updateSyncStatus("Searching Drive for database file...");
       try {
         const query = encodeURIComponent("name='swim_tracker_db.json' and trashed=false");
         const listRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,modifiedTime)`, { headers: { Authorization: `Bearer ${token}` }});
         const listData = await listRes.json();
-
-        const buildPayload = () => JSON.stringify({ phasedDB, logs: state.logs, engine: state.engine, gamify: state.gamify, currentWeek: state.currentWeek, currentCycle: state.currentCycle });
-
+        const buildPayload = () => JSON.stringify({ appData, logs: state.logs, engine: state.engine, gamify: state.gamify, generatedPlans: state.generatedPlans, currentWeek: state.currentWeek, currentCycle: state.currentCycle });
         if (!listData.files || listData.files.length === 0) {
           updateSyncStatus("Creating new cloud database...");
           const metadata = { name: 'swim_tracker_db.json', mimeType: 'application/json' };
           const form = new FormData();
           form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
           form.append('file', new Blob([buildPayload()], { type: 'application/json' }));
-          
           const createRes = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,modifiedTime', { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: form });
           const created = await createRes.json();
           completeSyncSuccess(new Date(created.modifiedTime).getTime(), "Created and uploaded to Drive.");
           return;
         }
-
         const fileId = listData.files[0].id;
         const driveTime = new Date(listData.files[0].modifiedTime).getTime();
         const DELTA = 5000;
-        
         const cloudIsNewer = (driveTime > state.lastSynced + DELTA);
         const localIsNewer = (state.localModified > state.lastSynced + DELTA);
-
         if (cloudIsNewer && !localIsNewer) {
           updateSyncStatus("Cloud version is newer. Downloading...");
           await pullFile(token, fileId, driveTime);
@@ -713,31 +754,26 @@
         }
       } catch (err) { updateSyncStatus(`Sync Error: ${err.message}`, true); }
     }
-
     async function pullFile(token, fileId, driveTime) {
       const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, { headers: { Authorization: `Bearer ${token}` }});
       const data = await res.json();
-      phasedDB = data.phasedDB; state.logs = data.logs; state.engine = data.engine; state.gamify = data.gamify;
+      appData = data.appData; state.logs = data.logs; state.engine = data.engine; state.gamify = data.gamify;
+      state.generatedPlans = data.generatedPlans || {};
       state.currentWeek = data.currentWeek; state.currentCycle = data.currentCycle;
-      saveDatabase(); saveState(); init();
+      localStorage.setItem("swim_tracker_app_data", JSON.stringify(appData)); saveState(); init();
       completeSyncSuccess(driveTime, "Downloaded from Drive.");
     }
-
     async function pushFile(token, fileId, payloadStr) {
-      const res = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media&fields=modifiedTime`, {
-        method: 'PATCH', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: payloadStr
-      });
+      const res = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media&fields=modifiedTime`, { method: 'PATCH', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: payloadStr });
       const updated = await res.json();
       completeSyncSuccess(new Date(updated.modifiedTime).getTime(), "Uploaded to Drive.");
     }
-
     function completeSyncSuccess(newTime, msg) {
       state.lastSynced = newTime; state.localModified = newTime;
       localStorage.setItem("swim_tracker_last_sync", state.lastSynced);
       localStorage.setItem("swim_tracker_local_mod", state.localModified);
       updateSyncStatus(`✓ Success: ${msg} (${new Date().toLocaleTimeString()})`);
     }
-
     window.onload = init;
   </script>
 </body>
