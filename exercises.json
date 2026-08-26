@@ -1,0 +1,373 @@
+{
+  "version": 9.0,
+  "exercise_catalog": {
+    "dry_rope_boxer_130": { "name": "Boxer Skip", "type": "dryland", "category": "aerobic", "equipment": "130g Rope", "notes": "Aerobic cadence ~130 RPM" },
+    "dry_rope_flow_250": { "name": "Weighted Rope Flow", "type": "dryland", "category": "aerobic", "equipment": "250g Rope", "notes": "Rhythm and wrist snap" },
+    "dry_rope_heavy_500": { "name": "Heavy Rope Power Intervals", "type": "dryland", "category": "vo2max", "equipment": "500g Rope", "notes": "Max effort power turning" },
+    "dry_rope_speed": { "name": "Speed Rope Cadence", "type": "dryland", "category": "vo2max", "equipment": "Speed Rope", "notes": "Light foot contact & high turnover" },
+    "dry_box_jump": { "name": "Box Jumps / Depth Jumps", "type": "dryland", "category": "leg_power", "equipment": "Plyo Box", "notes": "Step down each rep, triple extension" },
+    "dry_kb_swing": { "name": "Hardstyle Kettlebell Swings", "type": "dryland", "category": "leg_power", "equipment": "8kg / 12kg KB", "notes": "Crisp hip snap, vertical plank top" },
+    "dry_slam_ball": { "name": "Overhead Slam Ball Throws", "type": "dryland", "category": "upper_power", "equipment": "Slam Ball", "notes": "Max intent explosive hip hinge" },
+    "dry_kb_snatch": { "name": "Single-Arm KB Clean & Press", "type": "dryland", "category": "upper_power", "equipment": "12kg KB", "notes": "Explosive triple extension" },
+    "dry_ring_pullup": { "name": "Ring Pull-Ups", "type": "dryland", "category": "upper_strength", "equipment": "Rings +/- Belt", "notes": "Full ROM, hollow posture" },
+    "dry_ring_dips": { "name": "Ring Dips", "type": "dryland", "category": "upper_strength", "equipment": "Rings +/- Belt", "notes": "Scapular depression at lockout" },
+    "dry_ring_row": { "name": "Ring Inverted Rows", "type": "dryland", "category": "upper_strength", "equipment": "Rings", "notes": "Scapular retraction & external rotation" },
+    "dry_band_streamline": { "name": "Resisted Streamline Holds", "type": "dryland", "category": "upper_strength", "equipment": "Resistance Band", "notes": "Locked streamline posture against load" },
+    "dry_ring_leglift": { "name": "Hanging Knee Tucks", "type": "dryland", "category": "core", "equipment": "Rings", "notes": "Strict anti-extension" },
+    "dry_hollow_hold": { "name": "Hollow Body Holds", "type": "dryland", "category": "core", "equipment": "None", "notes": "Lower back glued to floor" },
+    "dry_pallof_press": { "name": "Pallof Press & Holds", "type": "dryland", "category": "core", "equipment": "Resistance Band", "notes": "Anti-rotation bracing" },
+    "dry_kb_carry": { "name": "Kettlebell Suitcase Carry", "type": "dryland", "category": "leg_strength", "equipment": "8kg / 12kg KB", "notes": "Anti-lateral core flexion" },
+    "dry_kb_rdl": { "name": "Double KB RDL", "type": "dryland", "category": "leg_strength", "equipment": "8kg / 12kg KB", "notes": "Posterior chain balance" },
+    "dry_kb_goblet": { "name": "Kettlebell Goblet Squats", "type": "dryland", "category": "leg_strength", "equipment": "12kg KB", "notes": "Deep hip mobility & upright torso" },
+    "dry_mob_instep": { "name": "Kneeling Instep Sit", "type": "dryland", "category": "mobility", "equipment": "Mat", "notes": "Ankle plantarflexion stretch" },
+    "dry_mob_thoracic": { "name": "Thoracic Foam Roller Extension", "type": "dryland", "category": "mobility", "equipment": "Roller", "notes": "Spinal decompression & extension" },
+    "dry_mob_hang": { "name": "Passive Ring Hang", "type": "dryland", "category": "mobility", "equipment": "Rings", "notes": "Shoulder distraction with tucked ribs" },
+    "dry_mob_hip": { "name": "Half-Kneeling Hip Flexor Stretch", "type": "dryland", "category": "mobility", "equipment": "Mat", "notes": "Overhead reach with pelvic tilt" },
+    "dry_band_dislocates": { "name": "Band Shoulder Dislocates", "type": "dryland", "category": "mobility", "equipment": "Resistance Band", "notes": "Open chest and shoulders" },
+    "dry_rest": { "name": "Full Rest", "type": "dryland", "category": "rest", "equipment": "None", "notes": "Complete physical recovery", "excludeFromRandom": true },
+    
+    "pool_speed_ladder": { "name": "Speed Control Ladder", "type": "pool", "category": "speed", "equipment": "None", "notes": "Ascending/descending pace calibration" },
+    "pool_breakouts": { "name": "Breakout Sprints", "type": "pool", "category": "speed", "equipment": "None", "notes": "15m dive/push-off max velocity" },
+    "pool_usrpt_sprints": { "name": "USRPT Race-Pace Sprints", "type": "pool", "category": "speed", "equipment": "None", "notes": "Target race velocity with strict intervals" },
+    "pool_vo2_repeats": { "name": "Mid-Distance Threshold Repeats", "type": "pool", "category": "vo2max", "equipment": "None", "notes": "Sustained threshold pace" },
+    "pool_power_grid": { "name": "Short-Interval Power Grid", "type": "pool", "category": "vo2max", "equipment": "None", "notes": "Max sustainable speed on short rest" },
+    "pool_endurance_grid": { "name": "Variable-Pace Endurance Grid", "type": "pool", "category": "base", "equipment": "None", "notes": "Alternating paces" },
+    "pool_pyramid": { "name": "Pyramid Threshold Locomotive", "type": "pool", "category": "base", "equipment": "None", "notes": "Smooth building distance sets" },
+    "pool_dolphin_contrast": { "name": "Dolphin Kick Contrast Block", "type": "pool", "category": "legs", "equipment": "Socks + Fins", "notes": "Overload (drag) to overspeed (fins)" },
+    "pool_fin_engine": { "name": "Aerobic Fin Kick Engine", "type": "pool", "category": "legs", "equipment": "Fins", "notes": "Sustained kick rhythm with sprint surges" },
+    "pool_kick_triad": { "name": "Vertical / Horizontal / Swim Triad", "type": "pool", "category": "legs", "equipment": "None", "notes": "Tethered kick building into swim" },
+    "pool_technical_ladder": { "name": "Technical Recovery Ladder", "type": "pool", "category": "technique", "equipment": "None", "notes": "DPS emphasis and feel for water" },
+    "pool_drill_flush": { "name": "Feel-for-Water Flush & Drills", "type": "pool", "category": "technique", "equipment": "None", "notes": "Sculling, catch-up, and recovery flush" },
+    "pool_league": { "name": "League Workout Session", "type": "pool", "category": "league", "equipment": "Swimmer Choice", "notes": "High-intensity conditioning & sets", "excludeFromRandom": true },
+    "pool_off": { "name": "No Pool Session", "type": "pool", "category": "rest", "equipment": "None", "notes": "Zero water volume", "excludeFromRandom": true },
+    
+    "run_jog_z2": { "name": "Easy Aerobic Jog", "type": "run", "category": "jog", "equipment": "Shoes", "notes": "Zone 2 conversational pace", "excludeFromRandom": true },
+    "run_shakeout": { "name": "Light Recovery Shakeout", "type": "run", "category": "jog", "equipment": "Shoes", "notes": "15-20 min low-intensity movement", "excludeFromRandom": true },
+    "run_strides": { "name": "Jog + Relaxed Strides", "type": "run", "category": "vo2max", "equipment": "Shoes", "notes": "Easy cruise with 20s smooth accelerations", "excludeFromRandom": true },
+    "run_intervals": { "name": "Hard Interval Repeats", "type": "run", "category": "vo2max", "equipment": "Shoes", "notes": "Short hard efforts with full rest", "excludeFromRandom": true },
+    "run_off": { "name": "No Run", "type": "run", "category": "rest", "equipment": "None", "notes": "Resting legs", "excludeFromRandom": true }
+  },
+  "mesocycle_structure": {
+    "week1": {
+      "phaseName": "Week 1: Base & Calibration",
+      "badge": "badge-load",
+      "days": {
+        "sun": {
+          "baseRpe": 5.5,
+          "dryland": [
+            { "category": "aerobic", "prescription": "10 mins continuous @ 130 RPM" },
+            { "category": "aerobic", "prescription": "3 x 2 mins (30s rest)" },
+            { "category": "core", "prescription": "3 sets: 8 reps + 25s hold" },
+            { "category": "upper_strength", "prescription": "3 x 12 reps" }
+          ],
+          "pool": [{ "category": "rest", "prescription": "Rest or 15-20m recovery flush" }],
+          "run": [{ "category": "jog", "prescription": "20-25 min Zone 2 cruise" }]
+        },
+        "mon": {
+          "baseRpe": 7.5,
+          "dryland": [
+            { "category": "leg_power", "prescription": "4 x 5 reps (Crisp triple extension)" },
+            { "category": "upper_power", "prescription": "4 x 6 explosive reps" },
+            { "category": "upper_strength", "prescription": "Bodyweight • 4 x 5-6 reps" },
+            { "category": "leg_power", "prescription": "8kg KB • 4 x 12 reps" }
+          ],
+          "pool": [
+            { "category": "speed", "prescription": "4 x (4 x 25) @ 0:50 (18s -> 15s)" },
+            { "category": "speed", "prescription": "6 x 15m dive/push-off max + 100m easy" }
+          ],
+          "run": [{ "category": "vo2max", "prescription": "15 min jog + 4 x 20s strides" }]
+        },
+        "tue": {
+          "baseRpe": 8.5,
+          "dryland": [
+            { "category": "mobility", "prescription": "3 x 45s stretch" },
+            { "category": "upper_strength", "prescription": "2 x 15 reps" },
+            { "category": "vo2max", "prescription": "3 mins relaxed rhythm" }
+          ],
+          "pool": [{ "category": "league", "prescription": "Team threshold & conditioning set" }],
+          "run": [{ "category": "rest", "prescription": "Rest legs" }]
+        },
+        "wed": {
+          "baseRpe": 6.5,
+          "dryland": [
+            { "category": "mobility", "prescription": "2 mins gentle roll" },
+            { "category": "mobility", "prescription": "3 x 30s hangs" }
+          ],
+          "pool": [
+            { "category": "base", "prescription": "30 x 50 @ 1:30-1:40 (5 easy / 5 mod / 5 strong)" },
+            { "category": "legs", "prescription": "16 x 25 @ 0:50 (4 Socks, 4 Naked, 4 Fins, 4 Fast)" }
+          ],
+          "run": [{ "category": "jog", "prescription": "20-30 min steady jog" }]
+        },
+        "thu": {
+          "baseRpe": 6.0,
+          "dryland": [
+            { "category": "aerobic", "prescription": "5 x 45s (30s rest)" },
+            { "category": "leg_strength", "prescription": "Single 8kg KB • 3 x 8 reps/leg" },
+            { "category": "upper_strength", "prescription": "Bodyweight / Band • 3 x 6 reps" },
+            { "category": "leg_strength", "prescription": "12kg KB • 3 x 10 reps" }
+          ],
+          "pool": [
+            { "category": "technique", "prescription": "4 x 100 + 4 x 25 @ 2:00 / 0:40 (Smooth DPS)" },
+            { "category": "legs", "prescription": "400 kick with fins (Every 4th fast)" }
+          ],
+          "run": [{ "category": "jog", "prescription": "20 min relaxed pace" }]
+        },
+        "fri": {
+          "baseRpe": 2.0,
+          "dryland": [
+            { "category": "mobility", "prescription": "3 x 40s instep relaxation" },
+            { "category": "mobility", "prescription": "2 x 40s/side" }
+          ],
+          "pool": [{ "category": "rest", "prescription": "Full pool recovery" }],
+          "run": [{ "category": "jog", "prescription": "20 min light pace" }]
+        },
+        "sat": {
+          "baseRpe": 1.0,
+          "dryland": [{ "category": "rest", "prescription": "Complete rest" }],
+          "pool": [{ "category": "rest", "prescription": "Zero volume" }],
+          "run": [{ "category": "rest", "prescription": "Recovery" }]
+        }
+      }
+    },
+    "week2": {
+      "phaseName": "Week 2: Volume & Load Build",
+      "badge": "badge-load",
+      "days": {
+        "sun": {
+          "baseRpe": 6.0,
+          "dryland": [
+            { "category": "aerobic", "prescription": "12 mins continuous @ 135 RPM" },
+            { "category": "aerobic", "prescription": "5 x 2 mins (20s rest)" },
+            { "category": "leg_strength", "prescription": "2 x 8kg KBs • 4 x 40m walks" },
+            { "category": "core", "prescription": "4 sets: 10 reps + 30s hold" }
+          ],
+          "pool": [{ "category": "rest", "prescription": "20 min loose drills or rest" }],
+          "run": [{ "category": "jog", "prescription": "25-35 min Zone 2 cruise" }]
+        },
+        "mon": {
+          "baseRpe": 8.0,
+          "dryland": [
+            { "category": "leg_power", "prescription": "5 x 5 reps (Max intent)" },
+            { "category": "upper_power", "prescription": "4 x 8 reps/side" },
+            { "category": "upper_strength", "prescription": "Belt +4kg to +7kg • 4 x 5 reps" },
+            { "category": "leg_power", "prescription": "2 x 8kg (or 12kg) • 4 x 15 reps" }
+          ],
+          "pool": [
+            { "category": "vo2max", "prescription": "10 x 100 @ 2:30 (High DPS & threshold pace)" },
+            { "category": "speed", "prescription": "8 x 25 with fins @ 0:55 + 100m flush" }
+          ],
+          "run": [{ "category": "vo2max", "prescription": "20 min easy + 6 x 20s strides" }]
+        },
+        "tue": {
+          "baseRpe": 8.5,
+          "dryland": [
+            { "category": "mobility", "prescription": "3 x 50s stretch" },
+            { "category": "upper_strength", "prescription": "3 x 15 reps" },
+            { "category": "vo2max", "prescription": "4 mins relaxed bounce" }
+          ],
+          "pool": [{ "category": "league", "prescription": "Threshold & race-pace conditioning" }],
+          "run": [{ "category": "rest", "prescription": "Rest legs" }]
+        },
+        "wed": {
+          "baseRpe": 7.0,
+          "dryland": [
+            { "category": "mobility", "prescription": "2 mins spinal decompression" },
+            { "category": "mobility", "prescription": "3 x 35s hangs" }
+          ],
+          "pool": [
+            { "category": "base", "prescription": "Pyramid: 100-200-300-200-100 @ 1:45/100m" },
+            { "category": "legs", "prescription": "20 x 25 @ 0:50 (5 Socks, 5 Naked, 5 Fins, 5 Fast)" }
+          ],
+          "run": [{ "category": "jog", "prescription": "25-35 min steady jog" }]
+        },
+        "thu": {
+          "baseRpe": 6.5,
+          "dryland": [
+            { "category": "aerobic", "prescription": "4 rounds (2m 130g + 1m 250g)" },
+            { "category": "upper_strength", "prescription": "Belt +4kg to +5kg • 4 x 6 reps" },
+            { "category": "leg_strength", "prescription": "2 x 12kg KBs • 4 x 8 reps" },
+            { "category": "upper_strength", "prescription": "Feet elevated • 4 x 10 reps" }
+          ],
+          "pool": [
+            { "category": "technique", "prescription": "8 x 75 @ 1:40 (25 fast kick fins + 50 stroke)" },
+            { "category": "legs", "prescription": "400 kick with fins (Every 3rd fast)" }
+          ],
+          "run": [{ "category": "jog", "prescription": "20 min relaxed pace" }]
+        },
+        "fri": {
+          "baseRpe": 2.0,
+          "dryland": [
+            { "category": "mobility", "prescription": "3 x 45s instep relaxation" },
+            { "category": "mobility", "prescription": "2 x 45s/side" }
+          ],
+          "pool": [{ "category": "rest", "prescription": "Full recovery" }],
+          "run": [{ "category": "jog", "prescription": "25 min light pace" }]
+        },
+        "sat": {
+          "baseRpe": 1.0,
+          "dryland": [{ "category": "rest", "prescription": "Complete rest" }],
+          "pool": [{ "category": "rest", "prescription": "Zero volume" }],
+          "run": [{ "category": "rest", "prescription": "Recovery" }]
+        }
+      }
+    },
+    "week3": {
+      "phaseName": "Week 3: Peak Intensity",
+      "badge": "badge-peak",
+      "days": {
+        "sun": {
+          "baseRpe": 6.5,
+          "dryland": [
+            { "category": "vo2max", "prescription": "6 x 40s max effort (50s rest)" },
+            { "category": "aerobic", "prescription": "4 x 90s fast tempo" },
+            { "category": "core", "prescription": "3 x 12 reps/side + 10s hold" },
+            { "category": "core", "prescription": "3 x 20 reps" }
+          ],
+          "pool": [{ "category": "rest", "prescription": "15 min loose recovery" }],
+          "run": [{ "category": "jog", "prescription": "20-25 min Zone 2 cruise" }]
+        },
+        "mon": {
+          "baseRpe": 8.5,
+          "dryland": [
+            { "category": "leg_power", "prescription": "Depth jumps to max box jump • 4 x 4" },
+            { "category": "upper_power", "prescription": "5 x 6 max-effort throws" },
+            { "category": "upper_strength", "prescription": "Belt +10kg to +15kg • 4 x 3-4 reps" },
+            { "category": "upper_power", "prescription": "12kg KB clean/snatch • 4 x 6/side" }
+          ],
+          "pool": [
+            { "category": "speed", "prescription": "2 x (8 x 25) @ 0:40 Race Pace" },
+            { "category": "speed", "prescription": "4 x 25 all-out @ 1:15 + 100m flush" }
+          ],
+          "run": [{ "category": "vo2max", "prescription": "15 min jog + 6 x 20s strides" }]
+        },
+        "tue": {
+          "baseRpe": 9.0,
+          "dryland": [
+            { "category": "mobility", "prescription": "3 x 50s stretch" },
+            { "category": "upper_strength", "prescription": "3 x 12 reps resisted overhead" },
+            { "category": "vo2max", "prescription": "4 x 30s double-under bursts" }
+          ],
+          "pool": [{ "category": "league", "prescription": "League conditioning set" }],
+          "run": [{ "category": "rest", "prescription": "Rest legs" }]
+        },
+        "wed": {
+          "baseRpe": 7.5,
+          "dryland": [
+            { "category": "mobility", "prescription": "2 mins spinal decompression" },
+            { "category": "mobility", "prescription": "3 x 35s hangs" }
+          ],
+          "pool": [
+            { "category": "vo2max", "prescription": "20 x 50 @ 1:40 (Max sustainable speed)" },
+            { "category": "legs", "prescription": "Triad: 30s Vert Kick + 50 Kick + 50 Swim" }
+          ],
+          "run": [{ "category": "jog", "prescription": "20-30 min Zone 2 jog" }]
+        },
+        "thu": {
+          "baseRpe": 7.0,
+          "dryland": [
+            { "category": "vo2max", "prescription": "6 x 30s (45s rest)" },
+            { "category": "upper_strength", "prescription": "Belt +10kg • 4 x 4-5 reps" },
+            { "category": "leg_strength", "prescription": "2 x 12kg squat to press • 4 x 6" },
+            { "category": "upper_strength", "prescription": "External rotation • 4 x 8 reps" }
+          ],
+          "pool": [
+            { "category": "technique", "prescription": "4 x 100 + 4 x 25 @ 2:00 / 0:40 (Build to race pace)" },
+            { "category": "legs", "prescription": "400 kick with fins (Every 4th fast)" }
+          ],
+          "run": [{ "category": "jog", "prescription": "20 min relaxed pace" }]
+        },
+        "fri": {
+          "baseRpe": 2.0,
+          "dryland": [
+            { "category": "mobility", "prescription": "3 x 45s instep relaxation" },
+            { "category": "mobility", "prescription": "2 x 45s/side" }
+          ],
+          "pool": [{ "category": "rest", "prescription": "Full pool recovery" }],
+          "run": [{ "category": "jog", "prescription": "20 min light pace" }]
+        },
+        "sat": {
+          "baseRpe": 1.0,
+          "dryland": [{ "category": "rest", "prescription": "Complete rest" }],
+          "pool": [{ "category": "rest", "prescription": "Zero volume" }],
+          "run": [{ "category": "rest", "prescription": "Recovery" }]
+        }
+      }
+    },
+    "deload": {
+      "phaseName": "Deload & Restoration Week",
+      "badge": "badge-deload",
+      "days": {
+        "sun": {
+          "baseRpe": 3.5,
+          "dryland": [
+            { "category": "vo2max", "prescription": "6 mins relaxed continuous" },
+            { "category": "upper_strength", "prescription": "2 x 15 reps" },
+            { "category": "core", "prescription": "3 x 20s hollow holds" }
+          ],
+          "pool": [{ "category": "rest", "prescription": "Full joint decompression" }],
+          "run": [{ "category": "jog", "prescription": "15-20 min light shakeout" }]
+        },
+        "mon": {
+          "baseRpe": 4.5,
+          "dryland": [
+            { "category": "leg_power", "prescription": "Low step-ups • 3 x 8/leg" },
+            { "category": "upper_strength", "prescription": "Bodyweight • 3 x 8 reps" },
+            { "category": "leg_power", "prescription": "8kg KB • 3 x 10 swings + halos" }
+          ],
+          "pool": [
+            { "category": "speed", "prescription": "4 x 25 @ 1:00 (Hold smooth 16s, no strain)" },
+            { "category": "technique", "prescription": "200m easy DPS cruise" }
+          ],
+          "run": [{ "category": "rest", "prescription": "Recovery focus" }]
+        },
+        "tue": {
+          "baseRpe": 7.0,
+          "dryland": [
+            { "category": "mobility", "prescription": "3 x 45s stretch" },
+            { "category": "upper_strength", "prescription": "2 x 12 reps" }
+          ],
+          "pool": [{ "category": "league", "prescription": "Controlled effort / technical focus" }],
+          "run": [{ "category": "rest", "prescription": "No run" }]
+        },
+        "wed": {
+          "baseRpe": 4.5,
+          "dryland": [
+            { "category": "mobility", "prescription": "2 mins spinal roll" },
+            { "category": "mobility", "prescription": "3 x 25s hangs" }
+          ],
+          "pool": [
+            { "category": "base", "prescription": "15 x 50 @ 1:40 (Smooth long-axis freestyle)" },
+            { "category": "legs", "prescription": "300m continuous kick with fins @ Zone 2" }
+          ],
+          "run": [{ "category": "jog", "prescription": "Light walk or 15m jog" }]
+        },
+        "thu": {
+          "baseRpe": 4.0,
+          "dryland": [
+            { "category": "aerobic", "prescription": "3 x 2 mins relaxed" },
+            { "category": "leg_strength", "prescription": "Bodyweight only • 3 x 6/leg" },
+            { "category": "upper_strength", "prescription": "2 x 12 reps" }
+          ],
+          "pool": [{ "category": "technique", "prescription": "4 x 100 @ 2:15 (Sculling / catch-up / fist drill)" }],
+          "run": [{ "category": "jog", "prescription": "15m very easy recovery" }]
+        },
+        "fri": {
+          "baseRpe": 1.5,
+          "dryland": [
+            { "category": "mobility", "prescription": "3 x 40s instep relaxation" },
+            { "category": "mobility", "prescription": "2 x 35s/side" }
+          ],
+          "pool": [{ "category": "rest", "prescription": "Full recovery" }],
+          "run": [{ "category": "rest", "prescription": "Recovery" }]
+        },
+        "sat": {
+          "baseRpe": 1.0,
+          "dryland": [{ "category": "rest", "prescription": "Complete rest" }],
+          "pool": [{ "category": "rest", "prescription": "Zero volume" }],
+          "run": [{ "category": "rest", "prescription": "Recovery" }]
+        }
+      }
+    }
+  }
+}
