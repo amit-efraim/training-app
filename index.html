@@ -81,7 +81,7 @@
 
   <header>
     <div>
-      <h1>Adaptive System: Engine 13.0</h1>
+      <h1>Adaptive System: Engine 14.0</h1>
     </div>
     <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
       <div class="nav-tabs">
@@ -238,6 +238,11 @@
           <select id="modalExerciseSelect" required></select>
         </div>
 
+        <div class="form-group" style="margin-top: 8px; border-top: 1px solid var(--card-border); padding-top: 8px;">
+          <label>Target Effort</label>
+          <input type="text" id="modalEffort" placeholder="e.g., Easy, Medium, Hard, Max" required />
+        </div>
+
         <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px;">
           <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
           <button type="submit" class="btn">Save</button>
@@ -265,8 +270,8 @@
     const LOAD_BUFFER_THRESHOLD = 400;
 
     let appData = JSON.parse(localStorage.getItem("swim_tracker_app_data"));
-    if (!appData || appData.version !== 13.0) {
-      appData = { version: 13.0, exercise_catalog: {}, mesocycle_structure: {} };
+    if (!appData || appData.version !== 14.0) {
+      appData = { version: 14.0, exercise_catalog: {}, mesocycle_structure: {} };
       localStorage.setItem("swim_tracker_app_data", JSON.stringify(appData));
     }
 
@@ -537,7 +542,8 @@
             <div>
               <strong>${entry.name}</strong>
               <span class="meta" style="color:var(--accent); font-weight:600;">${item.category.toUpperCase().replace("_"," ")}</span>
-              <span class="meta">${entry.notes || ''} ${entry.equipment && entry.equipment !== 'None' ? `• ${entry.equipment}` : ''}</span>
+              <span class="meta" style="color: #fff;">${item.effort ? `<strong>Target: ${item.effort}</strong>` : 'Manage on go'}</span>
+              <span class="meta">${entry.notes ? entry.notes : ''} ${entry.equipment && entry.equipment !== 'None' ? `• ${entry.equipment}` : ''}</span>
             </div>
             <div class="item-actions">
               <button onclick="openEditExerciseModal('${type}', ${index})">✎</button>
@@ -675,6 +681,7 @@
       document.getElementById("modalType").value = type;
       document.getElementById("modalEditIndex").value = "-1";
       document.getElementById("modalTitle").innerText = `Add to ${type.toUpperCase()}`;
+      document.getElementById("modalEffort").value = "";
       populateCategoryDropdown(type);
       document.getElementById("exerciseModal").style.display = "flex";
     }
@@ -686,6 +693,7 @@
       document.getElementById("modalType").value = type;
       document.getElementById("modalEditIndex").value = index;
       document.getElementById("modalTitle").innerText = `Edit ${type.toUpperCase()}`;
+      document.getElementById("modalEffort").value = item.effort || "";
       
       populateCategoryDropdown(type, item.category);
       populateGroupedDropdown(item.exerciseId);
@@ -700,12 +708,13 @@
       const index = parseInt(document.getElementById("modalEditIndex").value);
       const category = document.getElementById("modalCategorySelect").value;
       const exerciseId = document.getElementById("modalExerciseSelect").value;
+      const effort = document.getElementById("modalEffort").value;
 
       const planKey = `c${state.currentCycle}_w${state.currentWeek}`;
       const arr = state.generatedPlans[planKey].days[state.currentDay][type];
       
-      if (index === -1) arr.push({ category, exerciseId });
-      else arr[index] = { category, exerciseId };
+      if (index === -1) arr.push({ category, exerciseId, effort });
+      else arr[index] = { category, exerciseId, effort };
       
       saveState(); closeModal(); renderDayView();
     }
