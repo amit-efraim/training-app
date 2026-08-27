@@ -52,12 +52,11 @@
     .exercise-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
     .exercise-item { background: rgba(15, 23, 42, 0.6); padding: 9px 12px; border-radius: 6px; border-left: 3px solid var(--primary); font-size: 0.9rem; display: flex; justify-content: space-between; align-items: center; }
     .exercise-item.running-item { border-left-color: var(--running); }
-    .exercise-item .meta { font-size: 0.8rem; color: var(--text-muted); display: block; }
+    .exercise-item .meta { font-size: 0.8rem; color: var(--text-muted); display: block; margin-top: 2px; }
     .item-actions button { background: transparent; border: none; color: var(--text-muted); cursor: pointer; margin-left: 6px; font-size: 0.85rem; }
     .item-actions button:hover { color: var(--text); }
     .item-actions button.del:hover { color: var(--danger); }
     .form-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
-    .form-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
     label { font-size: 0.85rem; font-weight: 600; color: var(--text-muted); }
     select, input, textarea { background: #0f172a; border: 1px solid var(--card-border); color: var(--text); padding: 8px 10px; border-radius: 6px; outline: none; }
     .btn { background: var(--primary); color: #0f172a; border: none; padding: 9px 14px; border-radius: 6px; font-weight: 700; cursor: pointer; }
@@ -82,7 +81,7 @@
 
   <header>
     <div>
-      <h1>Adaptive System: Engine 12.0</h1>
+      <h1>Adaptive System: Engine 13.0</h1>
     </div>
     <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
       <div class="nav-tabs">
@@ -239,42 +238,6 @@
           <select id="modalExerciseSelect" required></select>
         </div>
 
-        <div class="form-group" style="margin-top: 8px; border-top: 1px solid var(--card-border); padding-top: 8px;">
-          <label>Prescription Math Model</label>
-          <select id="modalPrescriptionType" onchange="togglePrescriptionFields()">
-            <option value="duration">Duration (Continuous)</option>
-            <option value="intervals">Intervals (HIIT/Timed)</option>
-            <option value="reps">Sets & Reps</option>
-            <option value="text">Text Fallback</option>
-          </select>
-        </div>
-
-        <!-- DURATION FIELD -->
-        <div id="field_duration" class="form-group p-field" style="display:flex;">
-          <label>Total Minutes</label>
-          <input type="number" id="modalMin" placeholder="e.g. 10" />
-        </div>
-
-        <!-- INTERVALS FIELDS -->
-        <div id="field_intervals" class="form-row p-field" style="display:none;">
-          <div class="form-group"><label>Rounds</label><input type="number" id="modalIntSets" placeholder="e.g. 6" /></div>
-          <div class="form-group"><label>Work (s)</label><input type="number" id="modalIntWork" placeholder="e.g. 30" /></div>
-          <div class="form-group"><label>Rest (s)</label><input type="number" id="modalIntRest" placeholder="e.g. 45" /></div>
-        </div>
-
-        <!-- REPS FIELDS -->
-        <div id="field_reps" class="form-row p-field" style="display:none;">
-          <div class="form-group"><label>Sets</label><input type="number" id="modalRepSets" placeholder="e.g. 4" /></div>
-          <div class="form-group"><label>Reps</label><input type="number" id="modalRepCount" placeholder="e.g. 5" /></div>
-          <div class="form-group"><label>Rest (s)</label><input type="number" id="modalRepRest" placeholder="e.g. 90" /></div>
-        </div>
-
-        <!-- TEXT FIELD -->
-        <div id="field_text" class="form-group p-field" style="display:none;">
-          <label>Text Description</label>
-          <input type="text" id="modalTextDesc" placeholder="e.g. 2500m Aerobic Base" />
-        </div>
-
         <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px;">
           <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
           <button type="submit" class="btn">Save</button>
@@ -302,8 +265,8 @@
     const LOAD_BUFFER_THRESHOLD = 400;
 
     let appData = JSON.parse(localStorage.getItem("swim_tracker_app_data"));
-    if (!appData || appData.version !== 12.0) {
-      appData = { version: 12.0, exercise_catalog: {}, mesocycle_structure: {} };
+    if (!appData || appData.version !== 13.0) {
+      appData = { version: 13.0, exercise_catalog: {}, mesocycle_structure: {} };
       localStorage.setItem("swim_tracker_app_data", JSON.stringify(appData));
     }
 
@@ -371,16 +334,6 @@
       });
       state.generatedPlans[key] = plan;
       saveState();
-    }
-
-    function formatPrescription(p) {
-      if (!p) return "";
-      if (typeof p === 'string') return p; // Legacy fallback
-      if (p.type === 'duration') return `${p.minutes} mins`;
-      if (p.type === 'intervals') return `${p.sets} rounds: ${p.work_sec}s work / ${p.rest_sec}s rest`;
-      if (p.type === 'reps') return `${p.sets} x ${p.reps} reps @ ${p.rest_sec}s rest`;
-      if (p.type === 'text') return p.text;
-      return "Unknown format";
     }
 
     function calculateAccumulatedLoad() {
@@ -584,7 +537,7 @@
             <div>
               <strong>${entry.name}</strong>
               <span class="meta" style="color:var(--accent); font-weight:600;">${item.category.toUpperCase().replace("_"," ")}</span>
-              <span class="meta">${formatPrescription(item.prescription)} ${entry.equipment !== 'None' ? `• ${entry.equipment}` : ''}</span>
+              <span class="meta">${entry.notes || ''} ${entry.equipment && entry.equipment !== 'None' ? `• ${entry.equipment}` : ''}</span>
             </div>
             <div class="item-actions">
               <button onclick="openEditExerciseModal('${type}', ${index})">✎</button>
@@ -718,25 +671,11 @@
       });
     }
 
-    window.togglePrescriptionFields = function() {
-      const t = document.getElementById("modalPrescriptionType").value;
-      document.querySelectorAll(".p-field").forEach(el => el.style.display = 'none');
-      document.getElementById(`field_${t}`).style.display = (t === 'duration' || t === 'text') ? 'flex' : 'grid';
-    }
-
     function openAddExerciseModal(type) {
       document.getElementById("modalType").value = type;
       document.getElementById("modalEditIndex").value = "-1";
       document.getElementById("modalTitle").innerText = `Add to ${type.toUpperCase()}`;
-      
-      document.getElementById("modalPrescriptionType").value = "duration";
-      document.getElementById("modalMin").value = "";
-      document.getElementById("modalIntSets").value = "";
-      document.getElementById("modalRepSets").value = "";
-      document.getElementById("modalTextDesc").value = "";
-      
       populateCategoryDropdown(type);
-      togglePrescriptionFields();
       document.getElementById("exerciseModal").style.display = "flex";
     }
     
@@ -750,27 +689,6 @@
       
       populateCategoryDropdown(type, item.category);
       populateGroupedDropdown(item.exerciseId);
-
-      // Map existing math object into modal fields
-      const p = item.prescription || {type: 'text', text: ''};
-      document.getElementById("modalPrescriptionType").value = p.type || 'text';
-      
-      if (p.type === 'duration') { document.getElementById("modalMin").value = p.minutes || ""; }
-      else if (p.type === 'intervals') {
-        document.getElementById("modalIntSets").value = p.sets || "";
-        document.getElementById("modalIntWork").value = p.work_sec || "";
-        document.getElementById("modalIntRest").value = p.rest_sec || "";
-      }
-      else if (p.type === 'reps') {
-        document.getElementById("modalRepSets").value = p.sets || "";
-        document.getElementById("modalRepCount").value = p.reps || "";
-        document.getElementById("modalRepRest").value = p.rest_sec || "";
-      }
-      else {
-        document.getElementById("modalTextDesc").value = p.text || (typeof p === 'string' ? p : "");
-      }
-
-      togglePrescriptionFields();
       document.getElementById("exerciseModal").style.display = "flex";
     }
     
@@ -782,27 +700,12 @@
       const index = parseInt(document.getElementById("modalEditIndex").value);
       const category = document.getElementById("modalCategorySelect").value;
       const exerciseId = document.getElementById("modalExerciseSelect").value;
-      const pType = document.getElementById("modalPrescriptionType").value;
-
-      let prescription = { type: pType };
-      if (pType === 'duration') { prescription.minutes = parseInt(document.getElementById("modalMin").value) || 0; }
-      else if (pType === 'intervals') {
-        prescription.sets = parseInt(document.getElementById("modalIntSets").value) || 0;
-        prescription.work_sec = parseInt(document.getElementById("modalIntWork").value) || 0;
-        prescription.rest_sec = parseInt(document.getElementById("modalIntRest").value) || 0;
-      }
-      else if (pType === 'reps') {
-        prescription.sets = parseInt(document.getElementById("modalRepSets").value) || 0;
-        prescription.reps = parseInt(document.getElementById("modalRepCount").value) || 0;
-        prescription.rest_sec = parseInt(document.getElementById("modalRepRest").value) || 0;
-      }
-      else { prescription.text = document.getElementById("modalTextDesc").value || ""; }
 
       const planKey = `c${state.currentCycle}_w${state.currentWeek}`;
       const arr = state.generatedPlans[planKey].days[state.currentDay][type];
       
-      if (index === -1) arr.push({ category, exerciseId, prescription });
-      else arr[index] = { category, exerciseId, prescription };
+      if (index === -1) arr.push({ category, exerciseId });
+      else arr[index] = { category, exerciseId };
       
       saveState(); closeModal(); renderDayView();
     }
