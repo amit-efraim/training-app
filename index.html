@@ -543,7 +543,7 @@
               <strong>${entry.name}</strong>
               <span class="meta" style="color:var(--accent); font-weight:600;">${item.category.toUpperCase().replace("_"," ")}</span>
               <span class="meta" style="color: #fff;">${item.effort ? `<strong>Target: ${item.effort}</strong>` : 'Manage on go'}</span>
-              <span class="meta">${entry.notes ? entry.notes : ''} ${entry.equipment && entry.equipment !== 'None' ? `• ${entry.equipment}` : ''}</span>
+              ${entry.equipment && entry.equipment !== 'None' ? `<span class="meta">• ${entry.equipment}</span>` : ''}
             </div>
             <div class="item-actions">
               <button onclick="openEditExerciseModal('${type}', ${index})">✎</button>
