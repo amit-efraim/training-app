@@ -82,7 +82,7 @@
 
   <header>
     <div>
-      <h1>Adaptive System: Engine 20.0</h1>
+      <h1>Adaptive System: Engine 21.0</h1>
     </div>
     <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
       <div class="nav-tabs">
@@ -631,6 +631,16 @@
       } else {
         if (isNewLog) {
           state.gamify.streak += 1;
+
+          // --- CONSISTENCY SHIELD RECOVERY ---
+          if (state.gamify.streak > 0 && state.gamify.streak % 7 === 0) {
+            if (state.gamify.shields < 3) {
+              state.gamify.shields += 1;
+              alert("🛡️ 7-Day Streak! You earned +1 Streak Shield.");
+            }
+          }
+          // -----------------------------------
+
           let earnedXp = isRestDay ? 30 : Math.round(100 * completionRatio);
           if (sessionStatus.run && sessionStatus.run !== 'missed') unlockBadge("runner_swimmer");
           state.gamify.xp += earnedXp;
