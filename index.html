@@ -63,6 +63,7 @@
     .btn-secondary { background: #334155; color: #fff; }
     .btn-warning { background: var(--warning); color: #0f172a; }
     .btn-success { background: var(--success); color: #0f172a; }
+    .btn-danger { background: var(--danger); color: #fff; }
     .btn-sm { padding: 4px 8px; font-size: 0.8rem; }
     .adaptive-alert { background: rgba(56, 189, 248, 0.1); border: 1px solid var(--primary); border-radius: 8px; padding: 12px; margin-top: 14px; font-size: 0.85rem; }
     .intensity-comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: rgba(15, 23, 42, 0.6); padding: 10px; border-radius: 6px; text-align: center; margin-bottom: 12px; }
@@ -81,7 +82,7 @@
 
   <header>
     <div>
-      <h1>Adaptive System: Engine 14.0</h1>
+      <h1>Adaptive System: Engine 15.0</h1>
     </div>
     <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
       <div class="nav-tabs">
@@ -203,7 +204,10 @@
 
   <div id="databaseView" style="display: none;">
     <div class="card">
-      <h2>Google Drive Sync</h2>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <h2>Google Drive Sync</h2>
+        <button class="btn btn-danger btn-sm" onclick="factoryReset()">⚠️ Reset Progress</button>
+      </div>
       <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">Authenticate with Google to read/write your encrypted database directly to your personal Drive.</p>
       <div class="form-group" style="margin-bottom: 16px;">
         <label>Google OAuth Client ID</label>
@@ -293,6 +297,16 @@
       renderDayView();
       renderAchievements();
       document.getElementById("jsonArea").value = JSON.stringify(appData, null, 2);
+    }
+
+    function factoryReset() {
+      if (confirm("Are you sure you want to wipe all progress? Your JSON catalog will remain intact, but all logs, XP, and weekly progression will be reset to Week 1.")) {
+        localStorage.removeItem("swim_tracker_logs");
+        localStorage.removeItem("swim_tracker_engine");
+        localStorage.removeItem("swim_tracker_gamify");
+        localStorage.removeItem("swim_tracker_generated_plans");
+        location.reload();
+      }
     }
 
     function getActivePhaseKey(week, isDeload) {
@@ -509,7 +523,9 @@
       const dayData = plan.days[state.currentDay] || { dryland: [], pool: [], run: [], baseRpe: 0.0 };
       const existingLog = state.logs[`${planKey}_${state.currentDay}`];
 
-      document.getElementById("currentDayTitle").innerText = `${DAYS.find(d => d.id === state.currentDay).name} Plan`;
+      const durationText = dayData.duration ? `<span style="font-size: 0.85rem; color: var(--text-muted); font-weight: normal; margin-left: 8px;">⏱️ ${dayData.duration}</span>` : "";
+      document.getElementById("currentDayTitle").innerHTML = `${DAYS.find(d => d.id === state.currentDay).name} Plan ${durationText}`;
+      
       document.getElementById("weekPhaseBadge").className = `badge ${plan.badge}`;
       document.getElementById("weekPhaseBadge").innerText = state.engine.isDeload ? "Deload Week: Recovery & Restoration" : `${plan.phaseName}`;
 
