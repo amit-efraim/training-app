@@ -82,7 +82,7 @@
 
   <header>
     <div>
-      <h1>Adaptive System: Engine 15.0</h1>
+      <h1>Adaptive System: Engine 17.0</h1>
     </div>
     <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
       <div class="nav-tabs">
@@ -242,9 +242,15 @@
           <select id="modalExerciseSelect" required></select>
         </div>
 
-        <div class="form-group" style="margin-top: 8px; border-top: 1px solid var(--card-border); padding-top: 8px;">
-          <label>Target Effort</label>
-          <input type="text" id="modalEffort" placeholder="e.g., Easy, Medium, Hard, Max" required />
+        <div style="display: flex; gap: 10px; margin-top: 8px; border-top: 1px solid var(--card-border); padding-top: 8px;">
+          <div class="form-group" style="flex: 1;">
+            <label>Target Effort</label>
+            <input type="text" id="modalEffort" placeholder="e.g., Medium" required />
+          </div>
+          <div class="form-group" style="flex: 1;">
+            <label>Expected Duration</label>
+            <input type="text" id="modalDuration" placeholder="e.g., 20-40 mins" />
+          </div>
         </div>
 
         <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px;">
@@ -274,13 +280,13 @@
     const LOAD_BUFFER_THRESHOLD = 400;
 
     let appData = JSON.parse(localStorage.getItem("swim_tracker_app_data"));
-    if (!appData || appData.version !== 14.0) {
-      appData = { version: 14.0, exercise_catalog: {}, mesocycle_structure: {} };
+    if (!appData || appData.version !== 17.0) {
+      appData = { version: 17.0, exercise_catalog: {}, mesocycle_structure: {} };
       localStorage.setItem("swim_tracker_app_data", JSON.stringify(appData));
     }
 
     let state = {
-      currentCycle: 1, currentWeek: 1, activeWeeksInCycle: 3, currentDay: "sun",
+      currentCycle: 1, currentWeek: 1, activeWeeksInCycle: 4, currentDay: "sun",
       logs: JSON.parse(localStorage.getItem("swim_tracker_logs")) || {},
       engine: JSON.parse(localStorage.getItem("swim_tracker_engine")) || { accumulatedLoad: 0, isDeload: false },
       gamify: JSON.parse(localStorage.getItem("swim_tracker_gamify")) || { xp: 0, streak: 0, shields: 2, unlocked: [] },
@@ -310,7 +316,7 @@
     }
 
     function getActivePhaseKey(week, isDeload) {
-      if (isDeload) return "deload";
+      if (isDeload || week === 4) return "deload";
       if (week === 1) return "week1";
       if (week === 2) return "week2";
       return "week3";
@@ -374,11 +380,10 @@
       document.getElementById("cycleLabel").innerText = `C${state.currentCycle}:`;
       const container = document.getElementById("dynamicWeekButtons");
       container.innerHTML = "";
-      const displayCount = Math.max(3, Math.min(6, Math.max(state.currentWeek, state.activeWeeksInCycle)));
-      for (let w = 1; w <= displayCount; w++) {
+      for (let w = 1; w <= 4; w++) {
         const btn = document.createElement("button");
         btn.className = `cycle-btn ${w === state.currentWeek ? "active" : ""}`;
-        btn.innerText = `W${w}`;
+        btn.innerText = w === 4 ? "Deload" : `W${w}`;
         btn.onclick = () => selectWeek(w);
         container.appendChild(btn);
       }
@@ -397,6 +402,7 @@
 
     function selectWeek(w) { 
       state.currentWeek = w; 
+      state.engine.isDeload = (w === 4);
       ensurePlanExists(state.currentCycle, state.currentWeek);
       updateDynamicWeekButtons(); 
       renderDaySelector(); 
@@ -523,9 +529,7 @@
       const dayData = plan.days[state.currentDay] || { dryland: [], pool: [], run: [], baseRpe: 0.0 };
       const existingLog = state.logs[`${planKey}_${state.currentDay}`];
 
-      const durationText = dayData.duration ? `<span style="font-size: 0.85rem; color: var(--text-muted); font-weight: normal; margin-left: 8px;">⏱️ ${dayData.duration}</span>` : "";
-      document.getElementById("currentDayTitle").innerHTML = `${DAYS.find(d => d.id === state.currentDay).name} Plan ${durationText}`;
-      
+      document.getElementById("currentDayTitle").innerText = `${DAYS.find(d => d.id === state.currentDay).name} Plan`;
       document.getElementById("weekPhaseBadge").className = `badge ${plan.badge}`;
       document.getElementById("weekPhaseBadge").innerText = state.engine.isDeload ? "Deload Week: Recovery & Restoration" : `${plan.phaseName}`;
 
@@ -558,7 +562,7 @@
             <div>
               <strong>${entry.name}</strong>
               <span class="meta" style="color:var(--accent); font-weight:600;">${item.category.toUpperCase().replace("_"," ")}</span>
-              <span class="meta" style="color: #fff;">${item.effort ? `<strong>Target: ${item.effort}</strong>` : 'Manage on go'}</span>
+              <span class="meta" style="color: #fff;">${item.effort ? `<strong>Target: ${item.effort}</strong>` : 'Manage on go'}${item.duration ? ` • ⏱️ ${item.duration}` : ''}</span>
               ${entry.equipment && entry.equipment !== 'None' ? `<span class="meta">• ${entry.equipment}</span>` : ''}
             </div>
             <div class="item-actions">
@@ -630,15 +634,19 @@
     }
 
     function advanceWeekWorkflow() {
-      if (state.engine.isDeload || state.currentWeek >= 6) {
+      if (state.currentWeek >= 4 || state.engine.isDeload) {
         if (confirm(`Conclude Cycle ${state.currentCycle}? Load buffer will reset.`)) {
-          state.currentCycle++; state.currentWeek = 1; state.activeWeeksInCycle = 3;
-          state.engine.accumulatedLoad = 0; state.engine.isDeload = false; state.gamify.xp += 200;
+          state.currentCycle++; 
+          state.currentWeek = 1; 
+          state.engine.accumulatedLoad = 0; 
+          state.engine.isDeload = false; 
+          state.gamify.xp += 200;
         }
       } else {
         state.currentWeek++;
-        if (state.currentWeek > state.activeWeeksInCycle) state.activeWeeksInCycle = state.currentWeek;
-        if (state.currentWeek === 6) state.engine.isDeload = true;
+        if (state.currentWeek === 4) {
+          state.engine.isDeload = true;
+        }
       }
       ensurePlanExists(state.currentCycle, state.currentWeek);
       saveState(); init(); selectDay("sun");
@@ -698,6 +706,7 @@
       document.getElementById("modalEditIndex").value = "-1";
       document.getElementById("modalTitle").innerText = `Add to ${type.toUpperCase()}`;
       document.getElementById("modalEffort").value = "";
+      document.getElementById("modalDuration").value = "";
       populateCategoryDropdown(type);
       document.getElementById("exerciseModal").style.display = "flex";
     }
@@ -710,6 +719,7 @@
       document.getElementById("modalEditIndex").value = index;
       document.getElementById("modalTitle").innerText = `Edit ${type.toUpperCase()}`;
       document.getElementById("modalEffort").value = item.effort || "";
+      document.getElementById("modalDuration").value = item.duration || "";
       
       populateCategoryDropdown(type, item.category);
       populateGroupedDropdown(item.exerciseId);
@@ -725,12 +735,16 @@
       const category = document.getElementById("modalCategorySelect").value;
       const exerciseId = document.getElementById("modalExerciseSelect").value;
       const effort = document.getElementById("modalEffort").value;
+      const duration = document.getElementById("modalDuration").value;
 
       const planKey = `c${state.currentCycle}_w${state.currentWeek}`;
       const arr = state.generatedPlans[planKey].days[state.currentDay][type];
       
-      if (index === -1) arr.push({ category, exerciseId, effort });
-      else arr[index] = { category, exerciseId, effort };
+      const payload = { category, exerciseId, effort };
+      if (duration) payload.duration = duration;
+
+      if (index === -1) arr.push(payload);
+      else arr[index] = payload;
       
       saveState(); closeModal(); renderDayView();
     }
