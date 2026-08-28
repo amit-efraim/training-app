@@ -82,7 +82,7 @@
 
   <header>
     <div>
-      <h1>Adaptive System: Engine 17.0</h1>
+      <h1>Adaptive System: Engine 20.0</h1>
     </div>
     <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
       <div class="nav-tabs">
@@ -102,7 +102,7 @@
       <div class="gamify-icon" style="color: var(--warning);">⚡</div>
       <div class="gamify-info">
         <div class="gamify-label">Cycle Load Buffer</div>
-        <div class="gamify-val" id="hudLoad">0 / 400 pts</div>
+        <div class="gamify-val" id="hudLoad">0 / 1300 pts</div>
         <div class="progress-bar-outer"><div class="progress-bar-inner load-bar-inner" id="hudLoadBar"></div></div>
       </div>
     </div>
@@ -277,16 +277,16 @@
       { id: "shield_saver", icon: "🛡️", title: "Shield Veteran", desc: "Preserve a streak using a shield" }
     ];
 
-    const LOAD_BUFFER_THRESHOLD = 400;
+    const LOAD_BUFFER_THRESHOLD = 1300;
 
     let appData = JSON.parse(localStorage.getItem("swim_tracker_app_data"));
-    if (!appData || appData.version !== 17.0) {
-      appData = { version: 17.0, exercise_catalog: {}, mesocycle_structure: {} };
+    if (!appData) {
+      appData = { version: 16.0, exercise_catalog: {}, mesocycle_structure: {} };
       localStorage.setItem("swim_tracker_app_data", JSON.stringify(appData));
     }
 
     let state = {
-      currentCycle: 1, currentWeek: 1, activeWeeksInCycle: 4, currentDay: "sun",
+      currentCycle: 1, currentWeek: 1, activeWeeksInCycle: 3, currentDay: "sun",
       logs: JSON.parse(localStorage.getItem("swim_tracker_logs")) || {},
       engine: JSON.parse(localStorage.getItem("swim_tracker_engine")) || { accumulatedLoad: 0, isDeload: false },
       gamify: JSON.parse(localStorage.getItem("swim_tracker_gamify")) || { xp: 0, streak: 0, shields: 2, unlocked: [] },
@@ -295,6 +295,11 @@
 
     function init() {
       document.getElementById("gcpClientId").value = localStorage.getItem("gdrive_client_id") || "";
+      
+      // Auto-repair week limits on load if needed
+      if (state.activeWeeksInCycle < 3) state.activeWeeksInCycle = 3;
+      if (state.currentWeek > state.activeWeeksInCycle) state.activeWeeksInCycle = state.currentWeek;
+
       ensurePlanExists(state.currentCycle, state.currentWeek);
       calculateAccumulatedLoad();
       updateDynamicWeekButtons();
@@ -315,11 +320,12 @@
       }
     }
 
-    function getActivePhaseKey(week, isDeload) {
-      if (isDeload || week === 4) return "deload";
+    function getActivePhaseKey(week) {
+      if (state.engine.isDeload && week === state.activeWeeksInCycle) return "deload";
       if (week === 1) return "week1";
-      if (week === 2) return "week2";
-      return "week3";
+      if (week === 2 || week === 4) return "week2";
+      if (week === 3 || week === 5) return "week3";
+      return "deload";
     }
 
     /* THE RANDOMIZATION ENGINE */
@@ -328,7 +334,7 @@
       if (!state.generatedPlans) state.generatedPlans = {};
       if (state.generatedPlans[key]) return; 
 
-      const phaseKey = getActivePhaseKey(week, state.engine.isDeload);
+      const phaseKey = getActivePhaseKey(week);
       const blueprint = appData.mesocycle_structure[phaseKey];
       if (!blueprint) return; 
 
@@ -370,20 +376,24 @@
         }
       });
       state.engine.accumulatedLoad = total;
-      if (state.engine.accumulatedLoad >= LOAD_BUFFER_THRESHOLD && !state.engine.isDeload) {
-        state.engine.isDeload = true;
-        unlockBadge("threshold_reached");
-      }
     }
 
     function updateDynamicWeekButtons() {
       document.getElementById("cycleLabel").innerText = `C${state.currentCycle}:`;
       const container = document.getElementById("dynamicWeekButtons");
       container.innerHTML = "";
-      for (let w = 1; w <= 4; w++) {
+      
+      const displayLimit = Math.max(3, state.activeWeeksInCycle);
+      
+      for (let w = 1; w <= displayLimit; w++) {
         const btn = document.createElement("button");
         btn.className = `cycle-btn ${w === state.currentWeek ? "active" : ""}`;
-        btn.innerText = w === 4 ? "Deload" : `W${w}`;
+        
+        if (state.engine.isDeload && w === state.activeWeeksInCycle) {
+           btn.innerText = "Deload";
+        } else {
+           btn.innerText = `W${w}`;
+        }
         btn.onclick = () => selectWeek(w);
         container.appendChild(btn);
       }
@@ -402,7 +412,6 @@
 
     function selectWeek(w) { 
       state.currentWeek = w; 
-      state.engine.isDeload = (w === 4);
       ensurePlanExists(state.currentCycle, state.currentWeek);
       updateDynamicWeekButtons(); 
       renderDaySelector(); 
@@ -531,7 +540,7 @@
 
       document.getElementById("currentDayTitle").innerText = `${DAYS.find(d => d.id === state.currentDay).name} Plan`;
       document.getElementById("weekPhaseBadge").className = `badge ${plan.badge}`;
-      document.getElementById("weekPhaseBadge").innerText = state.engine.isDeload ? "Deload Week: Recovery & Restoration" : `${plan.phaseName}`;
+      document.getElementById("weekPhaseBadge").innerText = plan.phaseName;
 
       renderExerciseList("dryland", dayData.dryland || []);
       renderExerciseList("pool", dayData.pool || []);
@@ -634,18 +643,26 @@
     }
 
     function advanceWeekWorkflow() {
-      if (state.currentWeek >= 4 || state.engine.isDeload) {
+      const isCurrentlyDeload = state.engine.isDeload;
+
+      if (isCurrentlyDeload) {
         if (confirm(`Conclude Cycle ${state.currentCycle}? Load buffer will reset.`)) {
           state.currentCycle++; 
           state.currentWeek = 1; 
+          state.activeWeeksInCycle = 3;
           state.engine.accumulatedLoad = 0; 
           state.engine.isDeload = false; 
           state.gamify.xp += 200;
         }
       } else {
         state.currentWeek++;
-        if (state.currentWeek === 4) {
+        if (state.currentWeek > state.activeWeeksInCycle) {
+            state.activeWeeksInCycle = state.currentWeek;
+        }
+
+        if (state.currentWeek >= 6 || state.engine.accumulatedLoad >= LOAD_BUFFER_THRESHOLD) {
           state.engine.isDeload = true;
+          if (state.engine.accumulatedLoad >= LOAD_BUFFER_THRESHOLD) unlockBadge("threshold_reached");
         }
       }
       ensurePlanExists(state.currentCycle, state.currentWeek);
