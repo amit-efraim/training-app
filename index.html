@@ -76,13 +76,20 @@
     .achievement-card .desc { font-size: 0.65rem; color: var(--text-muted); }
     .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 100; }
     .modal { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 10px; padding: 20px; width: 90%; max-width: 500px; }
+    
+    /* Engine 16 Net Load Display */
+    .net-load-display { margin-top: 16px; font-size: 0.95rem; text-align: center; background: rgba(56, 189, 248, 0.1); padding: 12px; border-radius: 6px; border: 1px dashed var(--primary); }
+    .net-load-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; margin-top: 8px; font-size: 0.85rem; color: var(--text-muted); }
+    .net-load-val { font-size: 1.2rem; font-weight: bold; color: #fff; display: block; }
+    .text-danger { color: #ef4444 !important; }
+    .text-success { color: #22c55e !important; }
   </style>
 </head>
 <body>
 
   <header>
     <div>
-      <h1>Adaptive System: Engine 21.0</h1>
+      <h1>Adaptive System: Engine 16.0</h1>
     </div>
     <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
       <div class="nav-tabs">
@@ -101,8 +108,8 @@
     <div class="gamify-stat">
       <div class="gamify-icon" style="color: var(--warning);">⚡</div>
       <div class="gamify-info">
-        <div class="gamify-label">Cycle Load Buffer</div>
-        <div class="gamify-val" id="hudLoad">0 / 1300 pts</div>
+        <div class="gamify-label">Continuous Load Buffer</div>
+        <div class="gamify-val" id="hudLoad">0 / 600 pts</div>
         <div class="progress-bar-outer"><div class="progress-bar-inner load-bar-inner" id="hudLoadBar"></div></div>
       </div>
     </div>
@@ -175,13 +182,24 @@
               <strong id="plannedRpeDisplay">--</strong>
             </div>
             <div>
-              <span style="font-size: 0.8rem; color: var(--text-muted); display: block;">Avg Logged RPE</span>
-              <strong id="loggedRpeDisplay">--</strong>
+              <span style="font-size: 0.8rem; color: var(--text-muted); display: block;">Target Recovery</span>
+              <strong id="plannedRecDisplay">--</strong>
             </div>
           </div>
 
           <form onsubmit="handleLogSubmit(event)">
             <div id="sessionLoggers"></div>
+
+            <div class="form-group" style="margin-top: 16px; padding: 12px; background: rgba(168, 85, 247, 0.1); border: 1px solid var(--accent); border-radius: 8px;">
+              <label style="color: #fff; font-size: 0.95rem; margin-bottom: 8px; display: block;">Session Recovery Score (0-10)</label>
+              <div style="display: flex; gap: 10px; align-items: center;">
+                <input type="range" id="recovery_score" min="0" max="10" value="5" oninput="document.getElementById('rec_val_display').innerText = this.value; updateOverallRpe();" style="flex: 1; accent-color: var(--accent);" />
+                <strong id="rec_val_display" style="color: var(--accent); font-size: 1.2rem; min-width: 20px; text-align: right;">5</strong>
+              </div>
+              <span style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-top: 6px;">0 = None, 5 = Active/Medium, 10 = Complete/Max Rest</span>
+            </div>
+
+            <div id="averageRpeDisplay"></div>
 
             <div class="form-group" style="margin-top:16px;">
               <label>Overall Session Notes</label>
@@ -189,7 +207,7 @@
             </div>
             <button type="submit" class="btn" style="width: 100%;">Save Log & Update Buffer</button>
           </form>
-          <div class="adaptive-alert" id="adaptiveFeedback"><strong>Buffer Engine:</strong> Phase-specific load scaling active.</div>
+          <div class="adaptive-alert" id="adaptiveFeedback"><strong>Buffer Engine:</strong> Fatigue scales with RPE, negated actively by Recovery.</div>
         </div>
       </div>
     </div>
@@ -242,15 +260,9 @@
           <select id="modalExerciseSelect" required></select>
         </div>
 
-        <div style="display: flex; gap: 10px; margin-top: 8px; border-top: 1px solid var(--card-border); padding-top: 8px;">
-          <div class="form-group" style="flex: 1;">
-            <label>Target Effort</label>
-            <input type="text" id="modalEffort" placeholder="e.g., Medium" required />
-          </div>
-          <div class="form-group" style="flex: 1;">
-            <label>Expected Duration</label>
-            <input type="text" id="modalDuration" placeholder="e.g., 20-40 mins" />
-          </div>
+        <div class="form-group" style="margin-top: 8px; border-top: 1px solid var(--card-border); padding-top: 8px;">
+          <label>Target Effort</label>
+          <input type="text" id="modalEffort" placeholder="e.g., Easy, Medium, Hard, Max" required />
         </div>
 
         <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px;">
@@ -277,11 +289,11 @@
       { id: "shield_saver", icon: "🛡️", title: "Shield Veteran", desc: "Preserve a streak using a shield" }
     ];
 
-    const LOAD_BUFFER_THRESHOLD = 1300;
+    const LOAD_BUFFER_THRESHOLD = 600;
 
     let appData = JSON.parse(localStorage.getItem("swim_tracker_app_data"));
-    if (!appData) {
-      appData = { version: 16.0, exercise_catalog: {}, mesocycle_structure: {} };
+    if (!appData || appData.version !== 14.0) {
+      appData = { version: 14.0, exercise_catalog: {}, mesocycle_structure: {} };
       localStorage.setItem("swim_tracker_app_data", JSON.stringify(appData));
     }
 
@@ -295,11 +307,6 @@
 
     function init() {
       document.getElementById("gcpClientId").value = localStorage.getItem("gdrive_client_id") || "";
-      
-      // Auto-repair week limits on load if needed
-      if (state.activeWeeksInCycle < 3) state.activeWeeksInCycle = 3;
-      if (state.currentWeek > state.activeWeeksInCycle) state.activeWeeksInCycle = state.currentWeek;
-
       ensurePlanExists(state.currentCycle, state.currentWeek);
       calculateAccumulatedLoad();
       updateDynamicWeekButtons();
@@ -320,21 +327,19 @@
       }
     }
 
-    function getActivePhaseKey(week) {
-      if (state.engine.isDeload && week === state.activeWeeksInCycle) return "deload";
+    function getActivePhaseKey(week, isDeload) {
+      if (isDeload) return "deload";
       if (week === 1) return "week1";
-      if (week === 2 || week === 4) return "week2";
-      if (week === 3 || week === 5) return "week3";
-      return "deload";
+      if (week === 2) return "week2";
+      return "week3";
     }
 
-    /* THE RANDOMIZATION ENGINE */
     function ensurePlanExists(cycle, week) {
       const key = `c${cycle}_w${week}`;
       if (!state.generatedPlans) state.generatedPlans = {};
       if (state.generatedPlans[key]) return; 
 
-      const phaseKey = getActivePhaseKey(week);
+      const phaseKey = getActivePhaseKey(week, state.engine.isDeload);
       const blueprint = appData.mesocycle_structure[phaseKey];
       if (!blueprint) return; 
 
@@ -369,31 +374,33 @@
 
     function calculateAccumulatedLoad() {
       let total = 0;
-      Object.entries(state.logs).forEach(([key, entry]) => {
-        if (key.startsWith(`c${state.currentCycle}_`) && entry.sessionStatus && entry.sessionStatus.overall !== 'missed') {
-            const ratio = entry.completionRatio !== undefined ? entry.completionRatio : 1;
-            total += (entry.rpe || 0) * 10 * ratio; 
+      // Sort logs chronologically to accurately floor fatigue at 0 along the journey
+      const sortedLogs = Object.values(state.logs).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+      
+      sortedLogs.forEach(entry => {
+        if (entry.sessionStatus && entry.sessionStatus.overall !== 'missed') {
+            // Fallback for older logs before Engine 16
+            const net = entry.netLoad !== undefined ? entry.netLoad : ((entry.rpe || 0) * 10 * (entry.completionRatio || 1));
+            total = Math.max(0, total + net);
         }
       });
+      
       state.engine.accumulatedLoad = total;
+      if (state.engine.accumulatedLoad >= LOAD_BUFFER_THRESHOLD && !state.engine.isDeload) {
+        state.engine.isDeload = true;
+        unlockBadge("threshold_reached");
+      }
     }
 
     function updateDynamicWeekButtons() {
       document.getElementById("cycleLabel").innerText = `C${state.currentCycle}:`;
       const container = document.getElementById("dynamicWeekButtons");
       container.innerHTML = "";
-      
-      const displayLimit = Math.max(3, state.activeWeeksInCycle);
-      
-      for (let w = 1; w <= displayLimit; w++) {
+      const displayCount = Math.max(3, Math.min(6, Math.max(state.currentWeek, state.activeWeeksInCycle)));
+      for (let w = 1; w <= displayCount; w++) {
         const btn = document.createElement("button");
         btn.className = `cycle-btn ${w === state.currentWeek ? "active" : ""}`;
-        
-        if (state.engine.isDeload && w === state.activeWeeksInCycle) {
-           btn.innerText = "Deload";
-        } else {
-           btn.innerText = `W${w}`;
-        }
+        btn.innerText = `W${w}`;
         btn.onclick = () => selectWeek(w);
         container.appendChild(btn);
       }
@@ -448,7 +455,6 @@
       });
     }
 
-    /* SPECIFIC WORKOUT RPE LOGIC */
     window.toggleRpe = function(key) {
       const status = document.getElementById(`status_${key}`).value;
       const container = document.getElementById(`rpe_container_${key}`);
@@ -459,19 +465,47 @@
     };
 
     window.updateOverallRpe = function() {
-      let sum = 0;
+      let sumRpe = 0;
       let count = 0;
       ['dryland', 'pool', 'run'].forEach(key => {
           const statusEl = document.getElementById(`status_${key}`);
           const rpeEl = document.getElementById(`rpe_${key}`);
           if (statusEl && rpeEl && statusEl.value !== 'missed') {
-              sum += parseFloat(rpeEl.value);
+              sumRpe += parseFloat(rpeEl.value);
               count++;
           }
       });
-      const avgDisplay = document.getElementById("liveAvgRpe");
-      if (avgDisplay) {
-          avgDisplay.innerText = count > 0 ? (sum / count).toFixed(1) : "0";
+      
+      const avgRpe = count > 0 ? (sumRpe / count) : 0;
+      const recScore = parseFloat(document.getElementById("recovery_score").value) || 0;
+      
+      const fatigueGen = Math.round(avgRpe * 10);
+      const recCleared = Math.round(recScore * 20);
+      const netLoad = fatigueGen - recCleared;
+      
+      const netClass = netLoad > 0 ? 'text-danger' : (netLoad < 0 ? 'text-success' : '');
+
+      const container = document.getElementById("averageRpeDisplay");
+      if(container) {
+        container.innerHTML = `
+          <div class="net-load-display">
+            <strong>Engine 16 Analytics</strong>
+            <div class="net-load-grid">
+              <div>
+                Load Added
+                <span class="net-load-val text-danger">+${fatigueGen}</span>
+              </div>
+              <div>
+                Rest Cleared
+                <span class="net-load-val text-success">-${recCleared}</span>
+              </div>
+              <div>
+                Net Fatigue
+                <span class="net-load-val ${netClass}">${netLoad > 0 ? '+' : ''}${netLoad}</span>
+              </div>
+            </div>
+          </div>
+        `;
       }
     };
 
@@ -518,16 +552,11 @@
 
       if (!hasScheduled) {
         container.innerHTML = `
-          <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:12px;">Rest Day. Maintain habit by saving log.</div>
+          <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:12px;">Rest Day. Maintain habit by saving log to earn recovery points.</div>
         `;
-      } else {
-         container.innerHTML += `
-           <div id="averageRpeDisplay" style="margin-top: 16px; font-size: 1rem; text-align: center; background: rgba(56, 189, 248, 0.1); padding: 8px; border-radius: 6px; border: 1px dashed var(--primary);">
-             Calculated Average RPE: <strong id="liveAvgRpe" style="font-size: 1.15rem;">--</strong>
-           </div>
-         `;
-         setTimeout(updateOverallRpe, 0); 
       }
+      
+      setTimeout(updateOverallRpe, 0); 
     }
 
     function renderDayView() {
@@ -538,26 +567,39 @@
       const dayData = plan.days[state.currentDay] || { dryland: [], pool: [], run: [], baseRpe: 0.0 };
       const existingLog = state.logs[`${planKey}_${state.currentDay}`];
 
-      document.getElementById("currentDayTitle").innerText = `${DAYS.find(d => d.id === state.currentDay).name} Plan`;
+      const durationText = dayData.duration ? `<span style="font-size: 0.85rem; color: var(--text-muted); font-weight: normal; margin-left: 8px;">⏱️ ${dayData.duration}</span>` : "";
+      document.getElementById("currentDayTitle").innerHTML = `${DAYS.find(d => d.id === state.currentDay).name} Plan ${durationText}`;
+      
       document.getElementById("weekPhaseBadge").className = `badge ${plan.badge}`;
-      document.getElementById("weekPhaseBadge").innerText = plan.phaseName;
+      document.getElementById("weekPhaseBadge").innerText = state.engine.isDeload ? "Deload Week: Recovery & Restoration" : `${plan.phaseName}`;
 
       renderExerciseList("dryland", dayData.dryland || []);
       renderExerciseList("pool", dayData.pool || []);
       renderExerciseList("run", dayData.run || []);
-      renderSessionLoggers(dayData, existingLog);
+      
+      // Calculate Default Recovery based on baseRpe
+      let defaultRec = 0;
+      if (dayData.baseRpe <= 2.5) defaultRec = 10;
+      else if (dayData.baseRpe <= 6.0) defaultRec = 5;
+      else defaultRec = 0;
 
       const plannedRpe = (dayData.baseRpe || 0).toFixed(1);
       document.getElementById("plannedRpeDisplay").innerText = plannedRpe;
+      document.getElementById("plannedRecDisplay").innerText = defaultRec;
+      
+      // Set slider before rendering
+      const recSlider = document.getElementById("recovery_score");
+      recSlider.value = existingLog && existingLog.recoveryScore !== undefined ? existingLog.recoveryScore : defaultRec;
+      document.getElementById("rec_val_display").innerText = recSlider.value;
+
+      renderSessionLoggers(dayData, existingLog);
 
       if (existingLog) {
         document.getElementById("loggedRpeDisplay").innerText = Number(existingLog.rpe).toFixed(1);
         document.getElementById("logNotes").value = existingLog.notes || "";
-        document.getElementById("adaptiveFeedback").innerHTML = `Logged. Delta vs Target: ${(existingLog.rpe - plannedRpe).toFixed(1)}`;
       } else {
         document.getElementById("loggedRpeDisplay").innerText = "--";
         document.getElementById("logNotes").value = "";
-        document.getElementById("adaptiveFeedback").innerHTML = `<strong>Target Baseline RPE is ${plannedRpe}.</strong>`;
       }
     }
 
@@ -571,7 +613,7 @@
             <div>
               <strong>${entry.name}</strong>
               <span class="meta" style="color:var(--accent); font-weight:600;">${item.category.toUpperCase().replace("_"," ")}</span>
-              <span class="meta" style="color: #fff;">${item.effort ? `<strong>Target: ${item.effort}</strong>` : 'Manage on go'}${item.duration ? ` • ⏱️ ${item.duration}` : ''}</span>
+              <span class="meta" style="color: #fff;">${item.effort ? `<strong>Target: ${item.effort}</strong>` : 'Manage on go'}</span>
               ${entry.equipment && entry.equipment !== 'None' ? `<span class="meta">• ${entry.equipment}</span>` : ''}
             </div>
             <div class="item-actions">
@@ -590,6 +632,7 @@
       const dayData = state.generatedPlans[planKey].days[state.currentDay];
       const plannedRpe = (dayData.baseRpe || 0);
       const notes = document.getElementById("logNotes").value;
+      const recScore = parseFloat(document.getElementById("recovery_score").value) || 0;
 
       const sessionStatus = {};
       const sessionRpes = {};
@@ -617,12 +660,16 @@
       
       let finalRpe = completedCount > 0 ? (sumRpe / completedCount) : 0;
 
+      // Engine 16 Math
+      const fatigueGen = finalRpe * 10 * completionRatio;
+      const recCleared = recScore * 20;
+      const netLoad = fatigueGen - recCleared;
+
       if (completionRatio === 0 && !isRestDay) {
         if (state.gamify.shields > 0) {
           if (isNewLog) state.gamify.shields -= 1;
           sessionStatus.overall = "shielded";
-          unlockBadge("shield_saver");
-          alert("🛡️ Streak Shield Activated!");
+          alert("🛡️ Streak Shield Activated! Your streak is safe.");
         } else {
           state.gamify.streak = 0;
           sessionStatus.overall = "missed";
@@ -631,49 +678,50 @@
       } else {
         if (isNewLog) {
           state.gamify.streak += 1;
-
-          // --- CONSISTENCY SHIELD RECOVERY ---
-          if (state.gamify.streak > 0 && state.gamify.streak % 7 === 0) {
+          
+          if (state.gamify.streak % 7 === 0) {
             if (state.gamify.shields < 3) {
               state.gamify.shields += 1;
-              alert("🛡️ 7-Day Streak! You earned +1 Streak Shield.");
+              alert("🛡️ 7-Day Streak! You earned a Streak Shield!");
+            } else {
+              alert("🔥 7-Day Streak! (Shields full at 3/3)");
             }
           }
-          // -----------------------------------
-
+          
           let earnedXp = isRestDay ? 30 : Math.round(100 * completionRatio);
-          if (sessionStatus.run && sessionStatus.run !== 'missed') unlockBadge("runner_swimmer");
           state.gamify.xp += earnedXp;
         }
         sessionStatus.overall = "completed";
       }
 
-      state.logs[logKey] = { rpe: finalRpe, sessionRpes, rpeDelta: finalRpe - plannedRpe, sessionStatus, completionRatio, notes, timestamp: new Date().toISOString() };
-      calculateAccumulatedLoad(); saveState(); init();
+      state.logs[logKey] = { 
+        rpe: finalRpe, 
+        recoveryScore: recScore,
+        netLoad: netLoad,
+        sessionRpes, 
+        rpeDelta: finalRpe - plannedRpe, 
+        sessionStatus, 
+        completionRatio, 
+        notes, 
+        timestamp: new Date().toISOString() 
+      };
+      
+      calculateAccumulatedLoad(); 
+      saveState(); 
+      init();
     }
 
     function advanceWeekWorkflow() {
-      const isCurrentlyDeload = state.engine.isDeload;
-
-      if (isCurrentlyDeload) {
-        if (confirm(`Conclude Cycle ${state.currentCycle}? Load buffer will reset.`)) {
-          state.currentCycle++; 
-          state.currentWeek = 1; 
-          state.activeWeeksInCycle = 3;
-          state.engine.accumulatedLoad = 0; 
-          state.engine.isDeload = false; 
-          state.gamify.xp += 200;
+      // ENGINE 16: Load no longer resets. It flows continuously.
+      if (state.engine.isDeload || state.currentWeek >= 6) {
+        if (confirm(`Conclude Cycle ${state.currentCycle}?`)) {
+          state.currentCycle++; state.currentWeek = 1; state.activeWeeksInCycle = 3;
+          state.engine.isDeload = false; state.gamify.xp += 200;
         }
       } else {
         state.currentWeek++;
-        if (state.currentWeek > state.activeWeeksInCycle) {
-            state.activeWeeksInCycle = state.currentWeek;
-        }
-
-        if (state.currentWeek >= 6 || state.engine.accumulatedLoad >= LOAD_BUFFER_THRESHOLD) {
-          state.engine.isDeload = true;
-          if (state.engine.accumulatedLoad >= LOAD_BUFFER_THRESHOLD) unlockBadge("threshold_reached");
-        }
+        if (state.currentWeek > state.activeWeeksInCycle) state.activeWeeksInCycle = state.currentWeek;
+        if (state.currentWeek === 6) state.engine.isDeload = true;
       }
       ensurePlanExists(state.currentCycle, state.currentWeek);
       saveState(); init(); selectDay("sun");
@@ -733,7 +781,6 @@
       document.getElementById("modalEditIndex").value = "-1";
       document.getElementById("modalTitle").innerText = `Add to ${type.toUpperCase()}`;
       document.getElementById("modalEffort").value = "";
-      document.getElementById("modalDuration").value = "";
       populateCategoryDropdown(type);
       document.getElementById("exerciseModal").style.display = "flex";
     }
@@ -746,7 +793,6 @@
       document.getElementById("modalEditIndex").value = index;
       document.getElementById("modalTitle").innerText = `Edit ${type.toUpperCase()}`;
       document.getElementById("modalEffort").value = item.effort || "";
-      document.getElementById("modalDuration").value = item.duration || "";
       
       populateCategoryDropdown(type, item.category);
       populateGroupedDropdown(item.exerciseId);
@@ -762,16 +808,12 @@
       const category = document.getElementById("modalCategorySelect").value;
       const exerciseId = document.getElementById("modalExerciseSelect").value;
       const effort = document.getElementById("modalEffort").value;
-      const duration = document.getElementById("modalDuration").value;
 
       const planKey = `c${state.currentCycle}_w${state.currentWeek}`;
       const arr = state.generatedPlans[planKey].days[state.currentDay][type];
       
-      const payload = { category, exerciseId, effort };
-      if (duration) payload.duration = duration;
-
-      if (index === -1) arr.push(payload);
-      else arr[index] = payload;
+      if (index === -1) arr.push({ category, exerciseId, effort });
+      else arr[index] = { category, exerciseId, effort };
       
       saveState(); closeModal(); renderDayView();
     }
@@ -782,7 +824,6 @@
       saveState(); renderDayView();
     }
     
-    /* MANUAL LOAD - DELETES CURRENT WEEK SO NEW BLUEPRINT APPLIES IMMEDIATELY */
     function loadDataFromClipboard() {
       try { 
         appData = JSON.parse(document.getElementById("jsonArea").value); 
@@ -794,7 +835,6 @@
       } catch(e) { alert("Invalid JSON format."); }
     }
 
-    /* GOOGLE DRIVE SYNC: EXPLICIT PUSH / PULL */
     const SCOPES = 'https://www.googleapis.com/auth/drive.file';
     let tokenClient;
     let pendingAction = null;
@@ -851,7 +891,6 @@
       } catch (err) { updateSyncStatus(`Upload Error: ${err.message}`, true); }
     }
 
-    /* PULL - DELETES CURRENT WEEK SO CLOUD BLUEPRINT APPLIES IMMEDIATELY */
     async function executePull(token) {
       updateSyncStatus("Downloading from Drive...");
       try {
