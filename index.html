@@ -40,6 +40,7 @@
     .day-btn { background: var(--card-bg); border: 1px solid var(--card-border); color: var(--text); padding: 10px; border-radius: 8px; cursor: pointer; text-align: center; }
     .day-btn.active { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
     .day-btn .status-dot { width: 8px; height: 8px; border-radius: 50%; margin: 4px auto 0; background: var(--card-border); }
+    .day-btn.saved .status-dot { background: var(--warning); }
     .day-btn.completed .status-dot { background: var(--success); }
     .day-btn.shielded .status-dot { background: var(--primary); }
     .main-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
@@ -82,7 +83,7 @@
 
   <header>
     <div>
-      <h1>Adaptive System: Engine 28.0</h1>
+      <h1>Adaptive System: Engine 29.0</h1>
     </div>
     <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
       <div class="nav-tabs">
@@ -183,16 +184,20 @@
             </div>
           </div>
 
-          <form onsubmit="handleLogSubmit(event)">
+          <div id="logForm">
             <div id="sessionLoggers"></div>
 
             <div class="form-group" style="margin-top:16px;">
               <label>Overall Session Notes</label>
               <textarea id="logNotes" rows="2" placeholder="Notes..."></textarea>
             </div>
-            <button type="submit" class="btn" style="width: 100%;">Save Log & Update Buffer</button>
-          </form>
-          <div id="adaptiveFeedback" style="font-size: 0.85rem; margin-top: 14px;"><strong>Buffer Engine:</strong> Continuous netting. Rest actively clears fatigue.</div>
+            
+            <div style="display: flex; gap: 10px; margin-top: 16px;">
+              <button type="button" class="btn btn-primary" style="flex: 1;" onclick="handleLogAction(false)">💾 Save Sessions</button>
+              <button type="button" class="btn btn-success" style="flex: 1;" onclick="handleLogAction(true)">🏆 Complete Day</button>
+            </div>
+          </div>
+          <div id="adaptiveFeedback" class="adaptive-alert"><strong>Buffer Engine:</strong> Continuous netting. Complete Day to update buffer.</div>
         </div>
       </div>
     </div>
@@ -304,7 +309,7 @@
 
     let appData = JSON.parse(localStorage.getItem("swim_tracker_app_data"));
     if (!appData) {
-      appData = { version: 28.0, exercise_catalog: {}, mesocycle_structure: {} };
+      appData = { version: 29.0, exercise_catalog: {}, mesocycle_structure: {} };
       localStorage.setItem("swim_tracker_app_data", JSON.stringify(appData));
     }
 
@@ -412,13 +417,17 @@
     function calculateAccumulatedLoad() {
       let netLoad = 0;
       Object.entries(state.logs).forEach(([key, entry]) => {
-        let load = 0;
-        if (entry.sessionStatus && entry.sessionStatus.overall !== 'missed') {
-            const ratio = entry.completionRatio !== undefined ? entry.completionRatio : 1;
-            load = (entry.rpe || 0) * 10 * ratio; 
+        // Only finalized days contribute to the global buffer
+        const isFinalized = entry.isDayFinalized !== false; 
+        if (isFinalized) {
+            let load = 0;
+            if (entry.sessionStatus && entry.sessionStatus.overall !== 'missed') {
+                const ratio = entry.completionRatio !== undefined ? entry.completionRatio : 1;
+                load = (entry.rpe || 0) * 10 * ratio; 
+            }
+            const rec = entry.recoveryScore || 0;
+            netLoad += (load - rec);
         }
-        const rec = entry.recoveryScore || 0;
-        netLoad += (load - rec);
       });
       state.engine.accumulatedLoad = Math.max(0, netLoad);
     }
@@ -484,9 +493,14 @@
       DAYS.forEach(day => {
         const logKey = `c${state.currentCycle}_w${state.currentWeek}_${day.id}`;
         const log = state.logs[logKey];
-        const isCompleted = log && log.sessionStatus && log.sessionStatus.overall === "completed";
+        
+        const isFinalized = log && log.isDayFinalized !== false;
+        const isSaved = log && log.isDayFinalized === false;
+        const isCompleted = log && log.sessionStatus && log.sessionStatus.overall === "completed" && isFinalized;
+        const isShielded = log && log.sessionStatus && log.sessionStatus.overall === "shielded" && isFinalized;
+        
         const btn = document.createElement("button");
-        btn.className = `day-btn ${day.id === state.currentDay ? "active" : ""} ${isCompleted ? "completed" : ""} ${(log && log.sessionStatus && log.sessionStatus.overall === "shielded") ? "shielded" : ""}`;
+        btn.className = `day-btn ${day.id === state.currentDay ? "active" : ""} ${isCompleted ? "completed" : ""} ${isShielded ? "shielded" : ""} ${isSaved ? "saved" : ""}`;
         btn.onclick = () => selectDay(day.id);
         btn.innerHTML = `<span style="font-weight:700;font-size:0.9rem;">${day.short}</span><span class="status-dot"></span>`;
         container.appendChild(btn);
@@ -562,7 +576,7 @@
 
       if (!hasScheduled) {
         container.innerHTML = `
-          <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:12px;">Rest Day. Maintain habit by saving log.</div>
+          <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:12px;">Rest Day. Maintain habit by completing log.</div>
         `;
       } else {
          container.innerHTML += `
@@ -613,9 +627,19 @@
       if (existingLog) {
         document.getElementById("loggedRpeDisplay").innerText = Number(existingLog.rpe).toFixed(1);
         document.getElementById("logNotes").value = existingLog.notes || "";
+        
+        if (existingLog.isDayFinalized !== false) {
+             document.getElementById("adaptiveFeedback").innerHTML = `<strong>✅ Day Completed.</strong> Gamification and Load Buffer updated.`;
+             document.getElementById("adaptiveFeedback").style.borderColor = "var(--success)";
+        } else {
+             document.getElementById("adaptiveFeedback").innerHTML = `<strong>⚠️ Sessions Saved.</strong> Buffer & Progress pending Complete Day.`;
+             document.getElementById("adaptiveFeedback").style.borderColor = "var(--warning)";
+        }
       } else {
         document.getElementById("loggedRpeDisplay").innerText = "--";
         document.getElementById("logNotes").value = "";
+        document.getElementById("adaptiveFeedback").innerHTML = `<strong>Buffer Engine:</strong> Continuous netting. Complete Day to officially update buffer.`;
+        document.getElementById("adaptiveFeedback").style.borderColor = "var(--primary)";
       }
 
       const tb = document.getElementById("transitionButtons");
@@ -681,8 +705,7 @@
       }).join("");
     }
 
-    function handleLogSubmit(e) {
-      e.preventDefault();
+    window.handleLogAction = function(isCompleting) {
       const planKey = `c${state.currentCycle}_w${state.currentWeek}`;
       const logKey = `${planKey}_${state.currentDay}`;
       const dayData = state.generatedPlans[planKey].days[state.currentDay];
@@ -714,55 +737,63 @@
 
       const isRestDay = (scheduledCount === 0);
       const completionRatio = isRestDay ? 1.0 : (completedCount / scheduledCount);
+      let finalRpe = completedCount > 0 ? (sumRpe / completedCount) : 0;
       
-      const existingLog = state.logs[logKey];
-      let prevStatus = existingLog ? existingLog.sessionStatus.overall : null;
       let newOverall = "completed";
       if (completionRatio === 0 && !isRestDay) newOverall = "missed";
       
-      let finalRpe = completedCount > 0 ? (sumRpe / completedCount) : 0;
+      const existingLog = state.logs[logKey];
+      let isDayFinalized = existingLog ? (existingLog.isDayFinalized !== false) : false;
+      let willFinalize = isDayFinalized || isCompleting;
 
-      if (newOverall === "missed" && prevStatus !== "missed" && prevStatus !== "shielded") {
-          if (state.gamify.shields > 0) {
-              state.gamify.shields -= 1;
-              newOverall = "shielded";
-              alert("🛡️ Streak Shield Activated!");
-              if (prevStatus === "completed") state.gamify.streak = Math.max(0, state.gamify.streak - 1);
-          } else {
-              state.gamify.streak = 0;
-              alert("⚠️ Streak Reset! 0 shields left.");
-          }
-      } else if (newOverall === "completed" && (prevStatus === "shielded" || prevStatus === "missed")) {
-          state.gamify.streak += 1;
-          if (prevStatus === "shielded") state.gamify.shields = Math.min(3, state.gamify.shields + 1);
-      } else if (!existingLog && newOverall === "completed") {
-          state.gamify.streak += 1;
-          if (state.gamify.streak > 0 && state.gamify.streak % 7 === 0) {
-              if (state.gamify.shields < 3) {
-                  state.gamify.shields += 1;
-                  alert("🛡️ 7-Day Streak! You earned +1 Streak Shield.");
+      if (willFinalize) {
+          let prevStatusForGamification = isDayFinalized ? (existingLog ? existingLog.sessionStatus.overall : null) : null;
+          
+          if (newOverall === "missed" && prevStatusForGamification !== "missed" && prevStatusForGamification !== "shielded") {
+              if (state.gamify.shields > 0) {
+                  state.gamify.shields -= 1;
+                  newOverall = "shielded";
+                  alert("🛡️ Streak Shield Activated!");
+                  if (prevStatusForGamification === "completed") state.gamify.streak = Math.max(0, state.gamify.streak - 1);
+              } else {
+                  state.gamify.streak = 0;
+                  alert("⚠️ Streak Reset! 0 shields left.");
+              }
+          } else if (newOverall === "completed" && (prevStatusForGamification === "shielded" || prevStatusForGamification === "missed")) {
+              state.gamify.streak += 1;
+              if (prevStatusForGamification === "shielded") state.gamify.shields = Math.min(3, state.gamify.shields + 1);
+          } else if (!prevStatusForGamification && newOverall === "completed") {
+              state.gamify.streak += 1;
+              if (state.gamify.streak > 0 && state.gamify.streak % 7 === 0) {
+                  if (state.gamify.shields < 3) {
+                      state.gamify.shields += 1;
+                      alert("🛡️ 7-Day Streak! You earned +1 Streak Shield.");
+                  }
+              }
+          } else if (!prevStatusForGamification && newOverall === "missed") {
+              if (state.gamify.shields > 0) {
+                  state.gamify.shields -= 1;
+                  newOverall = "shielded";
+                  alert("🛡️ Streak Shield Activated!");
+              } else {
+                  state.gamify.streak = 0;
+                  alert("⚠️ Streak Reset! 0 shields left.");
               }
           }
-      } else if (!existingLog && newOverall === "missed") {
-          if (state.gamify.shields > 0) {
-              state.gamify.shields -= 1;
-              newOverall = "shielded";
-              alert("🛡️ Streak Shield Activated!");
-          } else {
-              state.gamify.streak = 0;
-              alert("⚠️ Streak Reset! 0 shields left.");
-          }
-      }
 
-      if (!existingLog && newOverall !== "missed") {
-          let earnedXp = isRestDay ? 30 : Math.round(100 * completionRatio);
-          if (sessionStatus.other && sessionStatus.other !== 'missed' && sessionStatus.pool && sessionStatus.pool !== 'missed') unlockBadge("runner_swimmer");
-          state.gamify.xp += earnedXp;
+          if (!isDayFinalized && newOverall !== "missed") {
+              let earnedXp = isRestDay ? 30 : Math.round(100 * completionRatio);
+              if (sessionStatus.other && sessionStatus.other !== 'missed' && sessionStatus.pool && sessionStatus.pool !== 'missed') unlockBadge("runner_swimmer");
+              state.gamify.xp += earnedXp;
+          }
       }
       
       sessionStatus.overall = newOverall;
-      state.logs[logKey] = { rpe: finalRpe, sessionRpes, rpeDelta: finalRpe - plannedRpe, sessionStatus, completionRatio, notes, recoveryScore, timestamp: new Date().toISOString() };
-      calculateAccumulatedLoad(); saveState(); init();
+      state.logs[logKey] = { rpe: finalRpe, sessionRpes, rpeDelta: finalRpe - plannedRpe, sessionStatus, completionRatio, notes, recoveryScore, timestamp: new Date().toISOString(), isDayFinalized: willFinalize };
+      
+      calculateAccumulatedLoad(); 
+      saveState(); 
+      init();
     }
 
     window.advanceToPhase = function(targetPhase) {
