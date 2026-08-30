@@ -82,7 +82,7 @@
 
   <header>
     <div>
-      <h1>Adaptive System: Engine 25.0</h1>
+      <h1>Adaptive System: Engine 27.0</h1>
     </div>
     <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
       <div class="nav-tabs">
@@ -206,21 +206,36 @@
     <div class="card">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
         <h2>Google Drive Sync</h2>
-        <button class="btn btn-danger btn-sm" onclick="factoryReset()">⚠️ Reset Progress</button>
+        <button class="btn btn-danger btn-sm" onclick="factoryReset()">⚠️ Reset Progress (Soft Reset)</button>
       </div>
-      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">Authenticate with Google to read/write your encrypted database directly to your personal Drive.</p>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">Authenticate to sync data to Drive. <strong>Catalog</strong> syncs your exercises & blueprints. <strong>Progress</strong> syncs your weekly generated plan & fatigue.</p>
+      
       <div class="form-group" style="margin-bottom: 16px;">
         <label>Google OAuth Client ID</label>
         <input type="text" id="gcpClientId" placeholder="YOUR_CLIENT_ID.apps.googleusercontent.com" />
+        <button class="btn btn-success btn-sm" style="margin-top: 6px; width: max-content;" onclick="saveClientId()">Save ID</button>
       </div>
-      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-        <button class="btn btn-success btn-sm" onclick="saveClientId()">Save ID</button>
-        <button class="btn btn-primary btn-sm" onclick="authenticateDrive('push')">☁️ Save to Drive</button>
-        <button class="btn btn-primary btn-sm" onclick="authenticateDrive('pull')">⬇️ Load from Drive</button>
-        <button class="btn btn-secondary btn-sm" onclick="loadDataFromClipboard()">Load External JSON manually</button>
+
+      <div style="background: rgba(15, 23, 42, 0.4); border: 1px solid var(--card-border); padding: 12px; border-radius: 8px; margin-bottom: 12px;">
+        <strong style="display: block; margin-bottom: 8px; font-size: 0.95rem; color: var(--primary);">1. Catalog & Blueprints</strong>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button class="btn btn-primary btn-sm" onclick="authenticateDrive('push', 'catalog')">☁️ Push Catalog</button>
+          <button class="btn btn-primary btn-sm" onclick="authenticateDrive('pull', 'catalog')">⬇️ Pull Catalog</button>
+          <button class="btn btn-secondary btn-sm" onclick="loadDataFromClipboard()">Load JSON Manually</button>
+        </div>
       </div>
+
+      <div style="background: rgba(15, 23, 42, 0.4); border: 1px solid var(--card-border); padding: 12px; border-radius: 8px;">
+        <strong style="display: block; margin-bottom: 8px; font-size: 0.95rem; color: var(--success);">2. Training Progress & Active Plan</strong>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button class="btn btn-success btn-sm" onclick="authenticateDrive('push', 'state')">☁️ Push Progress</button>
+          <button class="btn btn-success btn-sm" onclick="authenticateDrive('pull', 'state')">⬇️ Pull Progress</button>
+        </div>
+      </div>
+
       <div id="syncStatus" style="font-size: 0.85rem; margin-top: 12px; color: var(--warning);"></div>
-      <textarea id="jsonArea" rows="6" style="width: 100%; margin-top: 12px; font-family: monospace; font-size: 0.8rem;"></textarea>
+      <label style="margin-top: 16px; display: block;">Catalog JSON (Read/Write)</label>
+      <textarea id="jsonArea" rows="6" style="width: 100%; margin-top: 4px; font-family: monospace; font-size: 0.8rem;"></textarea>
     </div>
   </div>
 
@@ -319,13 +334,13 @@
     }
 
     function factoryReset() {
-      if (confirm("Are you sure you want to wipe all progress? Your JSON catalog will remain intact, but all logs, XP, and weekly progression will be reset to Week 1.")) {
-        localStorage.removeItem("swim_tracker_logs");
-        localStorage.removeItem("swim_tracker_engine");
-        localStorage.removeItem("swim_tracker_gamify");
-        localStorage.removeItem("swim_tracker_generated_plans");
-        localStorage.removeItem("swim_tracker_meta");
-        location.reload();
+      if (confirm("Are you sure you want to reset your progress? This will wipe your logs, fatigue buffer, XP, and streaks, but will KEEP your current weekly plan and cycle schedule intact.")) {
+        state.logs = {};
+        state.engine = { accumulatedLoad: 0, isDeload: false };
+        state.gamify = { xp: 0, streak: 0, shields: 2, unlocked: [] };
+        saveState();
+        init();
+        alert("Progress reset. Your training plan remains intact.");
       }
     }
 
@@ -599,23 +614,26 @@
           return;
       }
 
-      let btnAdvRegular = "btn-secondary";
+      let btnAdvRegular = "btn-primary";
+      let btnW1 = "btn-secondary";
       let btnW2 = "btn-secondary";
       let btnW3 = "btn-secondary";
       let btnDeload = "btn-secondary";
 
       if (load >= LOAD_BUFFER_THRESHOLD || w >= 5) {
           btnDeload = "btn-success";
+          btnAdvRegular = "btn-secondary";
       } else if (w === 3) {
           btnW2 = "btn-success";
+          btnAdvRegular = "btn-secondary";
       } else if (w === 4) {
           btnW3 = "btn-success";
-      } else {
-          btnAdvRegular = "btn-primary";
+          btnAdvRegular = "btn-secondary";
       }
 
       tb.innerHTML = `
           <button class="btn ${btnAdvRegular} btn-sm" onclick="advanceToPhase('next')">Advance Next Week ➔</button>
+          <button class="btn ${btnW1} btn-sm" onclick="advanceToPhase('week1')">Repeat W1</button>
           <button class="btn ${btnW2} btn-sm" onclick="advanceToPhase('week2')">Repeat W2</button>
           <button class="btn ${btnW3} btn-sm" onclick="advanceToPhase('week3')">Repeat W3</button>
           <button class="btn ${btnDeload} btn-sm" onclick="advanceToPhase('deload')">Skip to Deload</button>
@@ -753,9 +771,7 @@
           if (targetPhase === 'deload') {
               state.engine.isDeload = true;
           } else if (targetPhase === 'next') {
-              if (state.currentWeek === 2) state.phaseOverrides[state.currentWeek] = 'week2';
-              else if (state.currentWeek === 3) state.phaseOverrides[state.currentWeek] = 'week3';
-              else if (state.currentWeek >= 4) state.engine.isDeload = true;
+              if (state.currentWeek >= 4) state.engine.isDeload = true;
           } else {
               state.phaseOverrides[state.currentWeek] = targetPhase;
           }
@@ -826,8 +842,6 @@
       document.getElementById("modalType").value = type;
       document.getElementById("modalEditIndex").value = "-1";
       document.getElementById("modalTitle").innerText = `Add to ${type.toUpperCase()}`;
-      document.getElementById("modalEffort").value = "";
-      document.getElementById("modalDuration").value = "";
       document.getElementById("modalCustomName").value = "";
       
       document.getElementById("modalEffortContainer").style.display = "none";
@@ -884,28 +898,21 @@
       saveState(); closeModal(); renderDayView();
     }
     
-    function deleteExercise(type, index) {
-      const planKey = `c${state.currentCycle}_w${state.currentWeek}`;
-      state.generatedPlans[planKey].days[state.currentDay][type].splice(index, 1);
-      saveState(); renderDayView();
-    }
-    
-    /* MANUAL LOAD - DELETES CURRENT WEEK SO NEW BLUEPRINT APPLIES IMMEDIATELY */
+    /* MANUAL LOAD - ONLY UPDATES CATALOG (Safe) */
     function loadDataFromClipboard() {
       try { 
         appData = JSON.parse(document.getElementById("jsonArea").value); 
-        delete state.generatedPlans[`c${state.currentCycle}_w${state.currentWeek}`]; // Force re-roll
         localStorage.setItem("swim_tracker_app_data", JSON.stringify(appData));
-        saveState();
         init(); 
-        alert("Database loaded and current week regenerated!"); 
+        alert("Catalog loaded! Your current week plan remains intact."); 
       } catch(e) { alert("Invalid JSON format."); }
     }
 
-    /* GOOGLE DRIVE SYNC: EXPLICIT PUSH / PULL */
+    /* GOOGLE DRIVE SYNC: SPLIT FOR CATALOG vs STATE */
     const SCOPES = 'https://www.googleapis.com/auth/drive.file';
     let tokenClient;
     let pendingAction = null;
+    let pendingTarget = null;
 
     function saveClientId() {
       const id = document.getElementById("gcpClientId").value.trim();
@@ -917,35 +924,40 @@
       el.innerText = msg; el.style.color = isError ? "var(--danger)" : "var(--success)";
     }
 
-    function authenticateDrive(action) {
+    function authenticateDrive(action, target) {
       const clientId = localStorage.getItem("gdrive_client_id");
       if (!clientId) return updateSyncStatus("Please enter your Google Client ID first.", true);
-      updateSyncStatus("Authenticating with Google...");
+      updateSyncStatus(`Authenticating with Google for ${target}...`);
       pendingAction = action;
+      pendingTarget = target;
       tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: clientId, scope: SCOPES,
         callback: (response) => {
           if (response.error) updateSyncStatus("Authentication failed.", true);
           else {
-              if (pendingAction === 'push') executePush(response.access_token);
-              else if (pendingAction === 'pull') executePull(response.access_token);
+              if (pendingAction === 'push') executePush(response.access_token, pendingTarget);
+              else if (pendingAction === 'pull') executePull(response.access_token, pendingTarget);
           }
         }
       });
       tokenClient.requestAccessToken();
     }
 
-    async function executePush(token) {
-      updateSyncStatus("Uploading to Drive...");
+    async function executePush(token, target) {
+      const fileName = target === 'catalog' ? 'swim_tracker_catalog.json' : 'swim_tracker_state.json';
+      updateSyncStatus(`Uploading ${target} to Drive...`);
       try {
-        const query = encodeURIComponent("name='swim_tracker_db.json' and trashed=false");
+        const query = encodeURIComponent(`name='${fileName}' and trashed=false`);
         const listRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id)`, { headers: { Authorization: `Bearer ${token}` }});
         const listData = await listRes.json();
         
-        const buildPayload = () => JSON.stringify({ appData, logs: state.logs, engine: state.engine, gamify: state.gamify, generatedPlans: state.generatedPlans, currentWeek: state.currentWeek, currentCycle: state.currentCycle });
+        const buildPayload = () => {
+            if (target === 'catalog') return JSON.stringify({ appData });
+            return JSON.stringify({ state, metaState });
+        };
 
         if (!listData.files || listData.files.length === 0) {
-          const metadata = { name: 'swim_tracker_db.json', mimeType: 'application/json' };
+          const metadata = { name: fileName, mimeType: 'application/json' };
           const form = new FormData();
           form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
           form.append('file', new Blob([buildPayload()], { type: 'application/json' }));
@@ -955,40 +967,48 @@
           const fileId = listData.files[0].id;
           await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, { method: 'PATCH', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: buildPayload() });
         }
-        updateSyncStatus(`✓ Successfully Saved to Drive (${new Date().toLocaleTimeString()})`);
+        updateSyncStatus(`✓ Successfully Pushed ${target} (${new Date().toLocaleTimeString()})`);
       } catch (err) { updateSyncStatus(`Upload Error: ${err.message}`, true); }
     }
 
-    /* PULL - DELETES CURRENT WEEK SO CLOUD BLUEPRINT APPLIES IMMEDIATELY */
-    async function executePull(token) {
-      updateSyncStatus("Downloading from Drive...");
+    async function executePull(token, target) {
+      const fileName = target === 'catalog' ? 'swim_tracker_catalog.json' : 'swim_tracker_state.json';
+      updateSyncStatus(`Downloading ${target} from Drive...`);
       try {
-        const query = encodeURIComponent("name='swim_tracker_db.json' and trashed=false");
+        const query = encodeURIComponent(`name='${fileName}' and trashed=false`);
         const listRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id)`, { headers: { Authorization: `Bearer ${token}` }});
         const listData = await listRes.json();
 
         if (!listData.files || listData.files.length === 0) {
-            return updateSyncStatus("No database found on Drive. Save to Drive first.", true);
+            return updateSyncStatus(`No ${target} found on Drive. Push to Drive first.`, true);
         }
 
         const fileId = listData.files[0].id;
         const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, { headers: { Authorization: `Bearer ${token}` }});
         const data = await res.json();
         
-        appData = data.appData; 
-        state.logs = data.logs; 
-        state.engine = data.engine; 
-        state.gamify = data.gamify;
-        state.generatedPlans = data.generatedPlans || {};
-        state.currentWeek = data.currentWeek; 
-        state.currentCycle = data.currentCycle;
+        if (target === 'catalog') {
+            if(data.appData) appData = data.appData;
+            localStorage.setItem("swim_tracker_app_data", JSON.stringify(appData));
+        } else {
+            if(data.state) {
+                state.logs = data.state.logs || {};
+                state.engine = data.state.engine || { accumulatedLoad: 0, isDeload: false };
+                state.gamify = data.state.gamify || { xp: 0, streak: 0, shields: 2, unlocked: [] };
+                state.generatedPlans = data.state.generatedPlans || {};
+                state.currentCycle = data.state.currentCycle;
+                state.currentWeek = data.state.currentWeek;
+                state.activeWeeksInCycle = data.state.activeWeeksInCycle;
+                state.phaseOverrides = data.state.phaseOverrides || {};
+            }
+            if(data.metaState) {
+                metaState = data.metaState;
+            }
+            saveState();
+        }
 
-        delete state.generatedPlans[`c${state.currentCycle}_w${state.currentWeek}`];
-
-        localStorage.setItem("swim_tracker_app_data", JSON.stringify(appData)); 
-        saveState(); 
         init();
-        updateSyncStatus(`✓ Successfully Loaded from Drive (${new Date().toLocaleTimeString()})`);
+        updateSyncStatus(`✓ Successfully Pulled ${target} (${new Date().toLocaleTimeString()})`);
       } catch (err) { updateSyncStatus(`Download Error: ${err.message}`, true); }
     }
 
