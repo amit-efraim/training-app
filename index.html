@@ -82,7 +82,7 @@
 
   <header>
     <div>
-      <h1>Adaptive System: Engine 27.0</h1>
+      <h1>Adaptive System: Engine 28.0</h1>
     </div>
     <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
       <div class="nav-tabs">
@@ -160,7 +160,10 @@
           <ul class="exercise-list" id="otherList"></ul>
 
           <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--card-border);">
-            <strong style="font-size: 0.9rem; color: #fff; margin-bottom: 8px; display: block;">Guided Mesocycle Transition</strong>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <strong style="font-size: 0.9rem; color: #fff;">Guided Mesocycle Transition</strong>
+              <button class="btn btn-secondary btn-sm" onclick="reRollCurrentWeek()" title="Re-randomize exercises for the current week">🎲 Re-Roll Week</button>
+            </div>
             <div id="transitionButtons" style="display: flex; gap: 8px; flex-wrap: wrap;"></div>
           </div>
         </div>
@@ -301,7 +304,7 @@
 
     let appData = JSON.parse(localStorage.getItem("swim_tracker_app_data"));
     if (!appData) {
-      appData = { version: 24.0, exercise_catalog: {}, mesocycle_structure: {} };
+      appData = { version: 28.0, exercise_catalog: {}, mesocycle_structure: {} };
       localStorage.setItem("swim_tracker_app_data", JSON.stringify(appData));
     }
 
@@ -395,6 +398,16 @@
       state.generatedPlans[key] = plan;
       saveState();
     }
+
+    window.reRollCurrentWeek = function() {
+        if (confirm("Re-randomize this week's plan? (Any logged sessions and RPEs for this week will be perfectly preserved).")) {
+            const planKey = `c${state.currentCycle}_w${state.currentWeek}`;
+            delete state.generatedPlans[planKey];
+            ensurePlanExists(state.currentCycle, state.currentWeek);
+            saveState();
+            renderDayView();
+        }
+    };
 
     function calculateAccumulatedLoad() {
       let netLoad = 0;
@@ -771,7 +784,9 @@
           if (targetPhase === 'deload') {
               state.engine.isDeload = true;
           } else if (targetPhase === 'next') {
-              if (state.currentWeek >= 4) state.engine.isDeload = true;
+              if (state.currentWeek === 2) state.phaseOverrides[state.currentWeek] = 'week2';
+              else if (state.currentWeek === 3) state.phaseOverrides[state.currentWeek] = 'week3';
+              else if (state.currentWeek >= 4) state.engine.isDeload = true;
           } else {
               state.phaseOverrides[state.currentWeek] = targetPhase;
           }
