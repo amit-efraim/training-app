@@ -25,7 +25,7 @@
     .gamify-val { font-size: 1.2rem; font-weight: 800; color: #fff; }
     .progress-bar-outer { background: #0f172a; border-radius: 999px; height: 7px; width: 100%; margin-top: 5px; overflow: hidden; border: 1px solid var(--card-border); }
     .progress-bar-inner { background: linear-gradient(90deg, var(--primary), var(--accent)); height: 100%; width: 0%; transition: width 0.4s ease; }
-    .load-bar-inner { background: linear-gradient(90deg, var(--success), var(--warning), var(--danger)); }
+    .load-bar-inner { background: linear-gradient(90deg, var(--success), var(--warning), var(--danger)); transition: background 0.3s; }
     .nav-tabs { display: flex; gap: 8px; }
     .tab-btn { background: var(--card-bg); border: 1px solid var(--card-border); color: var(--text); padding: 7px 14px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.85rem; }
     .tab-btn.active { background: var(--primary); color: #0f172a; border-color: var(--primary); }
@@ -83,7 +83,7 @@
 
   <header>
     <div>
-      <h1>Adaptive System: Engine 29.0</h1>
+      <h1>Adaptive System: Engine 30.0</h1>
     </div>
     <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
       <div class="nav-tabs">
@@ -103,7 +103,7 @@
       <div class="gamify-icon" style="color: var(--warning);">⚡</div>
       <div class="gamify-info">
         <div class="gamify-label">Cycle Load Buffer</div>
-        <div class="gamify-val" id="hudLoad">0 / 1000 pts</div>
+        <div class="gamify-val" id="hudLoad">0 / 450 pts</div>
         <div class="progress-bar-outer"><div class="progress-bar-inner load-bar-inner" id="hudLoadBar"></div></div>
       </div>
     </div>
@@ -305,11 +305,11 @@
       { id: "shield_saver", icon: "🛡️", title: "Shield Veteran", desc: "Preserve a streak using a shield" }
     ];
 
-    const LOAD_BUFFER_THRESHOLD = 1000;
+    const LOAD_BUFFER_THRESHOLD = 450;
 
     let appData = JSON.parse(localStorage.getItem("swim_tracker_app_data"));
     if (!appData) {
-      appData = { version: 29.0, exercise_catalog: {}, mesocycle_structure: {} };
+      appData = { version: 30.0, exercise_catalog: {}, mesocycle_structure: {} };
       localStorage.setItem("swim_tracker_app_data", JSON.stringify(appData));
     }
 
@@ -417,7 +417,6 @@
     function calculateAccumulatedLoad() {
       let netLoad = 0;
       Object.entries(state.logs).forEach(([key, entry]) => {
-        // Only finalized days contribute to the global buffer
         const isFinalized = entry.isDayFinalized !== false; 
         if (isFinalized) {
             let load = 0;
@@ -482,9 +481,16 @@
       document.getElementById("hudLevel").innerText = `Level ${level}`;
       document.getElementById("hudXp").innerText = `${g.xp} XP`;
       document.getElementById("hudXpBar").style.width = `${Math.min(100, ((g.xp % 400) / 400) * 100)}%`;
+      
       const loadPercent = Math.min(100, (eng.accumulatedLoad / LOAD_BUFFER_THRESHOLD) * 100);
       document.getElementById("hudLoad").innerText = `${Math.round(eng.accumulatedLoad)} / ${LOAD_BUFFER_THRESHOLD} pts`;
-      document.getElementById("hudLoadBar").style.width = `${loadPercent}%`;
+      const loadBar = document.getElementById("hudLoadBar");
+      loadBar.style.width = `${loadPercent}%`;
+      if (eng.accumulatedLoad >= LOAD_BUFFER_THRESHOLD) {
+          loadBar.style.background = "var(--danger)";
+      } else {
+          loadBar.style.background = "linear-gradient(90deg, var(--success), var(--warning), var(--danger))";
+      }
     }
 
     function renderDaySelector() {
@@ -587,8 +593,12 @@
          setTimeout(updateOverallRpe, 0); 
       }
 
-      const defaultRec = plannedRpe <= 1.5 ? 85 : (plannedRpe <= 4.5 ? 45 : (plannedRpe <= 6.0 ? 15 : 0));
-      const backendRecVal = existingLog && existingLog.recoveryScore !== undefined ? existingLog.recoveryScore : defaultRec;
+      // Dynamic Defaults for Recovery Slider
+      let defaultRecUI = 3.0; 
+      if (plannedRpe <= 1.5) defaultRecUI = 8.0; 
+      else if (plannedRpe <= 6.0) defaultRecUI = 6.0;
+
+      const backendRecVal = existingLog && existingLog.recoveryScore !== undefined ? existingLog.recoveryScore : (defaultRecUI * 10);
       const uiRecVal = (backendRecVal / 10).toFixed(1);
 
       container.innerHTML += `
@@ -599,7 +609,7 @@
               <input type="range" id="recoveryScoreUI" min="0" max="10" step="0.5" value="${uiRecVal}" oninput="document.getElementById('rec_val_display').innerText = this.value;" style="flex: 1; accent-color: var(--success);" />
               <strong id="rec_val_display" style="color: var(--success); font-size: 1.1rem; min-width: 20px; text-align: right;">${uiRecVal}</strong>
           </div>
-          <div style="font-size: 0.75rem; color: var(--text-muted);">Negates accumulated fatigue. Hard Day adds ~8.5 Load. Rest Day negates ~8.5 Load.</div>
+          <div style="font-size: 0.75rem; color: var(--text-muted);">Negates accumulated fatigue. (Default: Normal 3, Recovery 6, Rest 8).</div>
         </div>
       `;
     }
@@ -645,36 +655,39 @@
       const tb = document.getElementById("transitionButtons");
       let load = state.engine.accumulatedLoad;
       let w = state.currentWeek;
+      let overLoaded = load >= LOAD_BUFFER_THRESHOLD;
       
+      let transitionHtml = '';
+
       if (state.engine.isDeload) {
-          tb.innerHTML = `<button class="btn btn-warning" onclick="advanceToPhase('end_cycle')">Conclude Cycle ➔</button>`;
-          return;
+          if (overLoaded) {
+              transitionHtml = `<div style="color:var(--danger); font-size:0.85rem; margin-bottom:8px; font-weight:bold; width:100%;">⚠️ Buffer overloaded (${Math.round(load)}/${LOAD_BUFFER_THRESHOLD}). Continue Deloading.</div>
+                                <button class="btn btn-warning" onclick="advanceToPhase('deload')">Repeat Deload</button>
+                                <button class="btn btn-secondary" onclick="advanceToPhase('end_cycle')">Force Conclude Cycle ➔</button>`;
+          } else {
+              transitionHtml = `<button class="btn btn-success" onclick="advanceToPhase('end_cycle')">Conclude Cycle ➔</button>`;
+          }
+      } else {
+          let btnAdvRegular = overLoaded ? "btn-secondary" : "btn-primary";
+          let btnW1 = "btn-secondary";
+          let btnW2 = "btn-secondary";
+          let btnW3 = "btn-secondary";
+          let btnDeload = overLoaded || w >= 4 ? "btn-success" : "btn-secondary";
+
+          if (w === 3 && !overLoaded) { btnW2 = "btn-success"; btnAdvRegular = "btn-secondary"; }
+          else if (w === 4 && !overLoaded) { btnW3 = "btn-success"; btnAdvRegular = "btn-secondary"; }
+
+          let warningHtml = overLoaded ? `<div style="color:var(--danger); font-size:0.85rem; margin-bottom:8px; font-weight:bold; width:100%;">⚠️ Buffer overloaded (${Math.round(load)}/${LOAD_BUFFER_THRESHOLD}). Deload recommended to shed fatigue.</div>` : '';
+
+          transitionHtml = warningHtml + `
+              <button class="btn ${btnAdvRegular} btn-sm" onclick="advanceToPhase('next')">Advance Next Week ➔</button>
+              <button class="btn ${btnW1} btn-sm" onclick="advanceToPhase('week1')">Repeat W1</button>
+              <button class="btn ${btnW2} btn-sm" onclick="advanceToPhase('week2')">Repeat W2</button>
+              <button class="btn ${btnW3} btn-sm" onclick="advanceToPhase('week3')">Repeat W3</button>
+              <button class="btn ${btnDeload} btn-sm" onclick="advanceToPhase('deload')">Skip to Deload</button>
+          `;
       }
-
-      let btnAdvRegular = "btn-primary";
-      let btnW1 = "btn-secondary";
-      let btnW2 = "btn-secondary";
-      let btnW3 = "btn-secondary";
-      let btnDeload = "btn-secondary";
-
-      if (load >= LOAD_BUFFER_THRESHOLD || w >= 5) {
-          btnDeload = "btn-success";
-          btnAdvRegular = "btn-secondary";
-      } else if (w === 3) {
-          btnW2 = "btn-success";
-          btnAdvRegular = "btn-secondary";
-      } else if (w === 4) {
-          btnW3 = "btn-success";
-          btnAdvRegular = "btn-secondary";
-      }
-
-      tb.innerHTML = `
-          <button class="btn ${btnAdvRegular} btn-sm" onclick="advanceToPhase('next')">Advance Next Week ➔</button>
-          <button class="btn ${btnW1} btn-sm" onclick="advanceToPhase('week1')">Repeat W1</button>
-          <button class="btn ${btnW2} btn-sm" onclick="advanceToPhase('week2')">Repeat W2</button>
-          <button class="btn ${btnW3} btn-sm" onclick="advanceToPhase('week3')">Repeat W3</button>
-          <button class="btn ${btnDeload} btn-sm" onclick="advanceToPhase('deload')">Skip to Deload</button>
-      `;
+      tb.innerHTML = transitionHtml;
     }
 
     function renderExerciseList(type, list) {
