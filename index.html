@@ -85,7 +85,7 @@
 
   <header>
     <div>
-      <h1>Adaptive System: Engine 31.0</h1>
+      <h1>Adaptive System: Engine 32.0</h1>
     </div>
     <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
       <div class="nav-tabs">
@@ -333,14 +333,13 @@
     let state = JSON.parse(localStorage.getItem("swim_tracker_state")) || {};
     let metaState = JSON.parse(localStorage.getItem("swim_tracker_meta")) || { cycle: 1, week: 1, activeWeeks: 3, overrides: {} };
 
-    // Migration logic for 31.0 to handle nested blocks
-    if (!appData || appData.version < 31.0) {
-      if(appData) appData.version = 31.0;
-      else appData = { version: 31.0, exercise_catalog: {}, mesocycle_structure: {} };
+    // Migration logic for 32.0 to handle structural changes in blueprint
+    if (!appData || appData.version < 32.0) {
+      if(appData) appData.version = 32.0;
+      else appData = { version: 32.0, exercise_catalog: {}, mesocycle_structure: {} };
       localStorage.setItem("swim_tracker_app_data", JSON.stringify(appData));
       
       // Clear generated plans as they are now structurally incompatible
-      const oldPlans = JSON.parse(localStorage.getItem("swim_tracker_generated_plans")) || {};
       localStorage.setItem("swim_tracker_generated_plans", JSON.stringify({})); 
     }
 
@@ -592,7 +591,6 @@
       const renderLogger = (key, label) => {
         if (!dayData[key] || dayData[key].length === 0) return;
         
-        // A type has blocks now, check if any block has exercises
         let blockHasExercises = dayData[key].some(block => block.exercises && block.exercises.length > 0);
         if(!blockHasExercises) return;
         
@@ -754,7 +752,7 @@
                   <strong style="color:var(--primary); font-size:0.95rem;">${block.subHeader || 'Session'} ${block.sessionDuration ? ` • ⏱️ ${block.sessionDuration}` : ''}</strong>
                   <div>
                       <button class="btn btn-secondary btn-sm" onclick="openAddExerciseModal('${type}', ${blockIndex})">+ Add Exercise</button>
-                      <button class="btn btn-danger btn-sm" style="padding:2px 8px; margin-left:4px;" onclick="deleteSessionBlock('${type}', ${blockIndex})" title="Delete entire block">✕</button>
+                      <button class="btn btn-secondary btn-sm" style="padding:2px 8px; margin-left:4px;" onclick="deleteSessionBlock('${type}', ${blockIndex})" title="Delete entire block">✕</button>
                   </div>
               </div>
               <ul class="exercise-list">`;
