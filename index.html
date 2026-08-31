@@ -47,8 +47,8 @@
     @media (max-width: 900px) { .main-grid { grid-template-columns: 1fr; } .day-selector { grid-template-columns: repeat(4, 1fr); } }
     .card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 10px; padding: 18px; margin-bottom: 16px; }
     .card h2 { font-size: 1.15rem; margin-bottom: 10px; color: var(--primary); display: flex; justify-content: space-between; align-items: center; }
-    .section-header { display: flex; justify-content: space-between; align-items: center; margin: 14px 0 6px; }
-    .section-title { font-size: 0.9rem; font-weight: 700; color: var(--accent); text-transform: uppercase; }
+    .section-header { display: flex; justify-content: space-between; align-items: center; margin: 14px 0 6px; padding-bottom: 6px; border-bottom: 2px solid var(--card-border); }
+    .section-title { font-size: 0.95rem; font-weight: 700; color: #fff; text-transform: uppercase; }
     .section-title.other-title { color: var(--other); }
     .exercise-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
     .exercise-item { background: rgba(15, 23, 42, 0.6); padding: 9px 12px; border-radius: 6px; border-left: 3px solid var(--primary); font-size: 0.9rem; display: flex; justify-content: space-between; align-items: center; }
@@ -77,13 +77,15 @@
     .achievement-card .desc { font-size: 0.65rem; color: var(--text-muted); }
     .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 100; }
     .modal { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 10px; padding: 20px; width: 90%; max-width: 500px; }
+    .session-block { margin-top: 10px; background: rgba(15, 23, 42, 0.4); padding: 12px; border-radius: 8px; border: 1px solid var(--card-border); }
+    .session-block-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
   </style>
 </head>
 <body>
 
   <header>
     <div>
-      <h1>Adaptive System: Engine 30.0</h1>
+      <h1>Adaptive System: Engine 31.0</h1>
     </div>
     <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
       <div class="nav-tabs">
@@ -143,22 +145,22 @@
           </h2>
           
           <div class="section-header">
-            <span class="section-title">Dryland Session</span>
-            <button class="btn btn-secondary btn-sm" onclick="openAddExerciseModal('dryland')">+ Add</button>
+            <span class="section-title">Dryland Schedules</span>
+            <button class="btn btn-secondary btn-sm" onclick="openAddSessionModal('dryland')">+ Add Session Block</button>
           </div>
-          <ul class="exercise-list" id="drylandList"></ul>
+          <div id="drylandList"></div>
 
-          <div class="section-header" style="margin-top: 18px;">
-            <span class="section-title">Pool Session</span>
-            <button class="btn btn-secondary btn-sm" onclick="openAddExerciseModal('pool')">+ Add</button>
+          <div class="section-header" style="margin-top: 24px;">
+            <span class="section-title" style="color: var(--primary);">Pool Schedules</span>
+            <button class="btn btn-secondary btn-sm" onclick="openAddSessionModal('pool')">+ Add Session Block</button>
           </div>
-          <ul class="exercise-list" id="poolList"></ul>
+          <div id="poolList"></div>
 
-          <div class="section-header" style="margin-top: 18px;">
-            <span class="section-title other-title">Other Session</span>
-            <button class="btn btn-secondary btn-sm" onclick="openAddExerciseModal('other')">+ Add</button>
+          <div class="section-header" style="margin-top: 24px;">
+            <span class="section-title other-title">Other Schedules</span>
+            <button class="btn btn-secondary btn-sm" onclick="openAddSessionModal('other')">+ Add Session Block</button>
           </div>
-          <ul class="exercise-list" id="otherList"></ul>
+          <div id="otherList"></div>
 
           <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--card-border);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
@@ -247,12 +249,38 @@
     </div>
   </div>
 
-  <!-- DROPDOWN MODAL -->
+  <!-- ADD SESSION BLOCK MODAL -->
+  <div class="modal-backdrop" id="sessionModal">
+    <div class="modal">
+      <h2 style="margin-bottom: 12px; font-size: 1.1rem; color: var(--primary);">Add Session Block</h2>
+      <form onsubmit="saveModalSession(event)">
+        <input type="hidden" id="modalSessionType" />
+        
+        <div class="form-group">
+          <label>Sub-Header / Label Name</label>
+          <input type="text" id="modalSessionName" required placeholder="e.g. Morning Primer" />
+        </div>
+        
+        <div class="form-group">
+          <label>Expected Duration (Optional)</label>
+          <input type="text" id="modalSessionDuration" placeholder="e.g. 45 mins" />
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px;">
+          <button type="button" class="btn btn-secondary" onclick="closeSessionModal()">Cancel</button>
+          <button type="submit" class="btn">Create Block</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ADD EXERCISE MODAL -->
   <div class="modal-backdrop" id="exerciseModal">
     <div class="modal">
       <h2 id="modalTitle" style="margin-bottom: 12px; font-size: 1.1rem; color: var(--primary);">Add / Edit Exercise</h2>
       <form onsubmit="saveModalExercise(event)">
         <input type="hidden" id="modalType" />
+        <input type="hidden" id="modalBlockIndex" value="-1" />
         <input type="hidden" id="modalEditIndex" value="-1" />
         
         <div class="form-group">
@@ -270,20 +298,14 @@
           <input type="text" id="modalCustomName" placeholder="e.g. Cycling 45 mins" />
         </div>
 
-        <div id="modalEffortContainer" style="display: flex; gap: 10px; margin-top: 8px; border-top: 1px solid var(--card-border); padding-top: 8px;">
-          <div class="form-group" style="flex: 1;">
-            <label>Target Effort</label>
-            <input type="text" id="modalEffort" placeholder="e.g., Medium" />
-          </div>
-          <div class="form-group" style="flex: 1;">
-            <label>Expected Duration</label>
-            <input type="text" id="modalDuration" placeholder="e.g., 20-40 mins" />
-          </div>
+        <div class="form-group" style="margin-top: 8px; border-top: 1px solid var(--card-border); padding-top: 8px;">
+          <label>Target Effort</label>
+          <input type="text" id="modalEffort" placeholder="e.g., Medium" />
         </div>
 
         <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px;">
-          <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-          <button type="submit" class="btn">Save</button>
+          <button type="button" class="btn btn-secondary" onclick="closeExerciseModal()">Cancel</button>
+          <button type="submit" class="btn">Save Exercise</button>
         </div>
       </form>
     </div>
@@ -308,14 +330,21 @@
     const LOAD_BUFFER_THRESHOLD = 450;
 
     let appData = JSON.parse(localStorage.getItem("swim_tracker_app_data"));
-    if (!appData) {
-      appData = { version: 30.0, exercise_catalog: {}, mesocycle_structure: {} };
-      localStorage.setItem("swim_tracker_app_data", JSON.stringify(appData));
-    }
-
+    let state = JSON.parse(localStorage.getItem("swim_tracker_state")) || {};
     let metaState = JSON.parse(localStorage.getItem("swim_tracker_meta")) || { cycle: 1, week: 1, activeWeeks: 3, overrides: {} };
 
-    let state = {
+    // Migration logic for 31.0 to handle nested blocks
+    if (!appData || appData.version < 31.0) {
+      if(appData) appData.version = 31.0;
+      else appData = { version: 31.0, exercise_catalog: {}, mesocycle_structure: {} };
+      localStorage.setItem("swim_tracker_app_data", JSON.stringify(appData));
+      
+      // Clear generated plans as they are now structurally incompatible
+      const oldPlans = JSON.parse(localStorage.getItem("swim_tracker_generated_plans")) || {};
+      localStorage.setItem("swim_tracker_generated_plans", JSON.stringify({})); 
+    }
+
+    state = {
       currentCycle: metaState.cycle, currentWeek: metaState.week, activeWeeksInCycle: metaState.activeWeeks, phaseOverrides: metaState.overrides,
       currentDay: DAYS[new Date().getDay()].id, 
       logs: JSON.parse(localStorage.getItem("swim_tracker_logs")) || {},
@@ -377,26 +406,38 @@
         ['dryland', 'pool', 'other'].forEach(type => {
           const usedIds = new Set();
           if(plan.days[dayId][type]) {
-            plan.days[dayId][type].forEach(slot => {
-               if (slot.exerciseId) {
-                   usedIds.add(slot.exerciseId);
-                   return;
-               }
-
-               let candidates = Object.keys(catalog).filter(id => catalog[id].type === type && catalog[id].category === slot.category);
-               let nonExcluded = candidates.filter(id => !catalog[id].excludeFromRandom);
-               if (nonExcluded.length > 0) candidates = nonExcluded;
-               let unused = candidates.filter(id => !usedIds.has(id));
-               if (unused.length > 0) candidates = unused;
-               
-               if (candidates.length > 0) {
-                 const picked = candidates[Math.floor(Math.random() * candidates.length)];
-                 slot.exerciseId = picked;
-                 usedIds.add(picked);
-               } else {
-                 slot.exerciseId = null; 
-               }
-            });
+             plan.days[dayId][type] = plan.days[dayId][type].map(sessionBlock => {
+                 let expandedExercises = [];
+                 if(sessionBlock.exercises) {
+                     sessionBlock.exercises.forEach(slot => {
+                         let count = slot.count || 1;
+                         for(let i=0; i<count; i++) {
+                             let newSlot = Object.assign({}, slot);
+                             delete newSlot.count; // Remove count property for the actual slot
+                             
+                             if (newSlot.exerciseId) {
+                                 usedIds.add(newSlot.exerciseId);
+                             } else {
+                                 let candidates = Object.keys(catalog).filter(id => catalog[id].type === type && catalog[id].category === newSlot.category);
+                                 let nonExcluded = candidates.filter(id => !catalog[id].excludeFromRandom);
+                                 if (nonExcluded.length > 0) candidates = nonExcluded;
+                                 let unused = candidates.filter(id => !usedIds.has(id));
+                                 if (unused.length > 0) candidates = unused;
+                                 
+                                 if (candidates.length > 0) {
+                                   const picked = candidates[Math.floor(Math.random() * candidates.length)];
+                                   newSlot.exerciseId = picked;
+                                   usedIds.add(picked);
+                                 } else {
+                                   newSlot.exerciseId = null; 
+                                 }
+                             }
+                             expandedExercises.push(newSlot);
+                         }
+                     });
+                 }
+                 return { ...sessionBlock, exercises: expandedExercises };
+             });
           }
         });
       });
@@ -550,9 +591,18 @@
 
       const renderLogger = (key, label) => {
         if (!dayData[key] || dayData[key].length === 0) return;
+        
+        // A type has blocks now, check if any block has exercises
+        let blockHasExercises = dayData[key].some(block => block.exercises && block.exercises.length > 0);
+        if(!blockHasExercises) return;
+        
         hasScheduled = true;
         
-        const isRest = dayData[key].some(item => item.category === 'rest');
+        let isRest = false;
+        dayData[key].forEach(block => {
+            if(block.exercises.some(item => item.category === 'rest')) isRest = true;
+        });
+
         const defaultRpe = isRest ? 0 : plannedRpe;
         const statusVal = statuses[key] || "completed";
         const rpeVal = rpes[key] !== undefined ? rpes[key] : defaultRpe;
@@ -576,9 +626,9 @@
         `;
       };
 
-      renderLogger('dryland', 'Dryland Session');
-      renderLogger('pool', 'Pool Session');
-      renderLogger('other', 'Other Session');
+      renderLogger('dryland', 'Dryland Progress');
+      renderLogger('pool', 'Pool Progress');
+      renderLogger('other', 'Other Progress');
 
       if (!hasScheduled) {
         container.innerHTML = `
@@ -690,33 +740,75 @@
       tb.innerHTML = transitionHtml;
     }
 
-    function renderExerciseList(type, list) {
-      const catalog = appData.exercise_catalog || {};
-      document.getElementById(`${type}List`).innerHTML = list.map((item, index) => {
-        if (!item.exerciseId || !catalog[item.exerciseId]) return `<li class="exercise-item"><div><strong>No matching exercise found in Catalog</strong><span class="meta">${item.category}</span></div></li>`;
-        const entry = catalog[item.exerciseId];
-        
-        let displayName = entry.name;
-        if (item.customName) {
-            displayName = `Other: ${item.customName}`;
-        }
+    function renderExerciseList(type, sessionBlocks) {
+      if (!sessionBlocks || sessionBlocks.length === 0) {
+          document.getElementById(`${type}List`).innerHTML = `<div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:12px;">No sessions scheduled.</div>`;
+          return;
+      }
 
-        return `
-          <li class="exercise-item ${type === 'other' ? 'other-item' : ''}">
-            <div>
-              <strong>${displayName}</strong>
-              <span class="meta" style="color:var(--accent); font-weight:600;">${item.category.toUpperCase().replace("_"," ")}</span>
-              ${item.effort && item.effort !== "Ad-hoc" ? `<span class="meta" style="color: #fff;"><strong>Target: ${item.effort}</strong>${item.duration ? ` • ⏱️ ${item.duration}` : ''}</span>` : '<span class="meta" style="color: #fff;">Manage on go</span>'}
-              ${entry.equipment && entry.equipment !== 'None' ? `<span class="meta">• ${entry.equipment}</span>` : ''}
-            </div>
-            <div class="item-actions">
-              <button onclick="openEditExerciseModal('${type}', ${index})">✎</button>
-              <button class="del" onclick="deleteExercise('${type}', ${index})">✕</button>
-            </div>
-          </li>
-        `;
+      const catalog = appData.exercise_catalog || {};
+      
+      let html = sessionBlocks.map((block, blockIndex) => {
+          let blockHtml = `<div class="session-block">
+              <div class="session-block-header">
+                  <strong style="color:var(--primary); font-size:0.95rem;">${block.subHeader || 'Session'} ${block.sessionDuration ? ` • ⏱️ ${block.sessionDuration}` : ''}</strong>
+                  <div>
+                      <button class="btn btn-secondary btn-sm" onclick="openAddExerciseModal('${type}', ${blockIndex})">+ Add Exercise</button>
+                      <button class="btn btn-danger btn-sm" style="padding:2px 8px; margin-left:4px;" onclick="deleteSessionBlock('${type}', ${blockIndex})" title="Delete entire block">✕</button>
+                  </div>
+              </div>
+              <ul class="exercise-list">`;
+              
+          if (!block.exercises || block.exercises.length === 0) {
+              blockHtml += `<div style="font-size:0.8rem; color:var(--text-muted); padding-left:12px;">Empty block.</div>`;
+          } else {
+              blockHtml += block.exercises.map((item, exIndex) => {
+                  if (!item.exerciseId || !catalog[item.exerciseId]) return `<li class="exercise-item"><div><strong>No matching exercise found in Catalog</strong><span class="meta">${item.category}</span></div></li>`;
+                  const entry = catalog[item.exerciseId];
+                  
+                  let displayName = entry.name;
+                  if (item.customName) {
+                      displayName = `Other: ${item.customName}`;
+                  }
+                  
+                  return `
+                    <li class="exercise-item ${type === 'other' ? 'other-item' : ''}">
+                      <div>
+                        <strong>${displayName}</strong>
+                        <span class="meta" style="color:var(--accent); font-weight:600;">${item.category.toUpperCase().replace("_"," ")}</span>
+                        ${item.effort && item.effort !== "Ad-hoc" ? `<span class="meta" style="color: #fff;"><strong>Target: ${item.effort}</strong></span>` : '<span class="meta" style="color: #fff;">Manage on go</span>'}
+                        ${entry.equipment && entry.equipment !== 'None' ? `<span class="meta">• ${entry.equipment}</span>` : ''}
+                      </div>
+                      <div class="item-actions">
+                        <button onclick="openEditExerciseModal('${type}', ${blockIndex}, ${exIndex})">✎</button>
+                        <button class="del" onclick="deleteExercise('${type}', ${blockIndex}, ${exIndex})">✕</button>
+                      </div>
+                    </li>
+                  `;
+              }).join("");
+          }
+          blockHtml += `</ul></div>`;
+          return blockHtml;
       }).join("");
+
+      document.getElementById(`${type}List`).innerHTML = html;
     }
+    
+    window.deleteSessionBlock = function(type, blockIndex) {
+        if(confirm("Delete this entire session block?")) {
+            const planKey = `c${state.currentCycle}_w${state.currentWeek}`;
+            state.generatedPlans[planKey].days[state.currentDay][type].splice(blockIndex, 1);
+            saveState(); renderDayView();
+        }
+    };
+    
+    window.deleteExercise = function(type, blockIndex, exIndex) {
+        if(confirm("Remove this exercise?")) {
+            const planKey = `c${state.currentCycle}_w${state.currentWeek}`;
+            state.generatedPlans[planKey].days[state.currentDay][type][blockIndex].exercises.splice(exIndex, 1);
+            saveState(); renderDayView();
+        }
+    };
 
     window.handleLogAction = function(isCompleting) {
       const planKey = `c${state.currentCycle}_w${state.currentWeek}`;
@@ -809,36 +901,6 @@
       init();
     }
 
-    window.advanceToPhase = function(targetPhase) {
-      if (targetPhase === 'end_cycle') {
-          if (confirm(`Conclude Cycle ${state.currentCycle}? Note: Fatigue now carries over continuously and must be paid off with rest.`)) {
-              state.currentCycle++;
-              state.currentWeek = 1;
-              state.activeWeeksInCycle = 3;
-              state.engine.isDeload = false;
-              state.phaseOverrides = {};
-              state.gamify.xp += 200;
-          } else return;
-      } else {
-          state.currentWeek++;
-          if (state.currentWeek > state.activeWeeksInCycle) state.activeWeeksInCycle = state.currentWeek;
-          
-          if (!state.phaseOverrides) state.phaseOverrides = {};
-
-          if (targetPhase === 'deload') {
-              state.engine.isDeload = true;
-          } else if (targetPhase === 'next') {
-              if (state.currentWeek === 2) state.phaseOverrides[state.currentWeek] = 'week2';
-              else if (state.currentWeek === 3) state.phaseOverrides[state.currentWeek] = 'week3';
-              else if (state.currentWeek >= 4) state.engine.isDeload = true;
-          } else {
-              state.phaseOverrides[state.currentWeek] = targetPhase;
-          }
-      }
-      ensurePlanExists(state.currentCycle, state.currentWeek);
-      saveState(); init(); selectDay("sun");
-    }
-
     function unlockBadge(id) { if (!state.gamify.unlocked.includes(id)) { state.gamify.unlocked.push(id); saveState(); } }
     
     function renderAchievements() {
@@ -856,6 +918,33 @@
       localStorage.setItem("swim_tracker_generated_plans", JSON.stringify(state.generatedPlans));
       localStorage.setItem("swim_tracker_meta", JSON.stringify({ cycle: state.currentCycle, week: state.currentWeek, activeWeeks: state.activeWeeksInCycle, overrides: state.phaseOverrides }));
     }
+
+    /* Modal - Add Session Block */
+    window.openAddSessionModal = function(type) {
+        document.getElementById("modalSessionType").value = type;
+        document.getElementById("modalSessionName").value = "";
+        document.getElementById("modalSessionDuration").value = "";
+        document.getElementById("sessionModal").style.display = "flex";
+    };
+    window.closeSessionModal = function() { document.getElementById("sessionModal").style.display = "none"; };
+    
+    window.saveModalSession = function(e) {
+        e.preventDefault();
+        const type = document.getElementById("modalSessionType").value;
+        const subHeader = document.getElementById("modalSessionName").value;
+        const sessionDuration = document.getElementById("modalSessionDuration").value;
+        
+        const planKey = `c${state.currentCycle}_w${state.currentWeek}`;
+        if (!state.generatedPlans[planKey].days[state.currentDay][type]) state.generatedPlans[planKey].days[state.currentDay][type] = [];
+        
+        state.generatedPlans[planKey].days[state.currentDay][type].push({
+            subHeader: subHeader,
+            sessionDuration: sessionDuration,
+            exercises: []
+        });
+        
+        saveState(); closeSessionModal(); renderDayView();
+    };
 
     /* Modal / Category Extractor Editor */
     window.populateCategoryDropdown = function(type, selectedCategory = "") {
@@ -897,64 +986,61 @@
         document.getElementById("customNameContainer").style.display = (exId === 'custom_workout') ? 'block' : 'none';
     }
 
-    function openAddExerciseModal(type) {
+    window.openAddExerciseModal = function(type, blockIndex) {
       document.getElementById("modalType").value = type;
+      document.getElementById("modalBlockIndex").value = blockIndex;
       document.getElementById("modalEditIndex").value = "-1";
-      document.getElementById("modalTitle").innerText = `Add to ${type.toUpperCase()}`;
+      document.getElementById("modalTitle").innerText = `Add Exercise to Block`;
       document.getElementById("modalCustomName").value = "";
-      
-      document.getElementById("modalEffortContainer").style.display = "none";
+      document.getElementById("modalEffort").value = "";
       
       populateCategoryDropdown(type);
       document.getElementById("exerciseModal").style.display = "flex";
     }
     
-    function openEditExerciseModal(type, index) {
+    window.openEditExerciseModal = function(type, blockIndex, exIndex) {
       const planKey = `c${state.currentCycle}_w${state.currentWeek}`;
-      const item = state.generatedPlans[planKey].days[state.currentDay][type][index];
+      const item = state.generatedPlans[planKey].days[state.currentDay][type][blockIndex].exercises[exIndex];
       
       document.getElementById("modalType").value = type;
-      document.getElementById("modalEditIndex").value = index;
-      document.getElementById("modalTitle").innerText = `Edit ${type.toUpperCase()}`;
+      document.getElementById("modalBlockIndex").value = blockIndex;
+      document.getElementById("modalEditIndex").value = exIndex;
+      document.getElementById("modalTitle").innerText = `Edit Exercise`;
       document.getElementById("modalEffort").value = item.effort || "";
-      document.getElementById("modalDuration").value = item.duration || "";
       document.getElementById("modalCustomName").value = item.customName || "";
       
-      document.getElementById("modalEffortContainer").style.display = "flex";
-
       populateCategoryDropdown(type, item.category);
       populateGroupedDropdown(item.exerciseId);
       document.getElementById("exerciseModal").style.display = "flex";
     }
     
-    function closeModal() { document.getElementById("exerciseModal").style.display = "none"; }
+    window.closeExerciseModal = function() { document.getElementById("exerciseModal").style.display = "none"; }
     
-    function saveModalExercise(e) {
+    window.saveModalExercise = function(e) {
       e.preventDefault();
       const type = document.getElementById("modalType").value;
-      const index = parseInt(document.getElementById("modalEditIndex").value);
+      const blockIndex = parseInt(document.getElementById("modalBlockIndex").value);
+      const exIndex = parseInt(document.getElementById("modalEditIndex").value);
+      
       const category = document.getElementById("modalCategorySelect").value;
       const exerciseId = document.getElementById("modalExerciseSelect").value;
       
       let effort = document.getElementById("modalEffort").value;
-      let duration = document.getElementById("modalDuration").value;
 
-      if (index === -1) {
+      if (exIndex === -1 && !effort) {
           effort = "Ad-hoc";
-          duration = "";
       }
 
       const planKey = `c${state.currentCycle}_w${state.currentWeek}`;
-      const arr = state.generatedPlans[planKey].days[state.currentDay][type];
+      const arr = state.generatedPlans[planKey].days[state.currentDay][type][blockIndex].exercises;
       
       const payload = { category, exerciseId, effort };
-      if (duration) payload.duration = duration;
       if (exerciseId === 'custom_workout') payload.customName = document.getElementById("modalCustomName").value;
 
-      if (index === -1) arr.push(payload);
-      else arr[index] = payload;
+      if (exIndex === -1) arr.push(payload);
+      else arr[exIndex] = payload;
       
-      saveState(); closeModal(); renderDayView();
+      saveState(); closeExerciseModal(); renderDayView();
     }
     
     /* MANUAL LOAD - ONLY UPDATES CATALOG (Safe) */
@@ -963,7 +1049,7 @@
         appData = JSON.parse(document.getElementById("jsonArea").value); 
         localStorage.setItem("swim_tracker_app_data", JSON.stringify(appData));
         init(); 
-        alert("Catalog loaded! Your current week plan remains intact."); 
+        alert("Catalog loaded! If your generated plan disappeared, it was wiped to safely update to the new version format."); 
       } catch(e) { alert("Invalid JSON format."); }
     }
 
