@@ -475,18 +475,43 @@
 
     function calculateAccumulatedLoad() {
       let netLoad = 0;
-      Object.entries(state.logs).forEach(([key, entry]) => {
+      
+      // 1. Sort logs chronologically to prevent negative fatigue "banking"
+      const dayOrder = { "sun": 0, "mon": 1, "tue": 2, "wed": 3, "thu": 4, "fri": 5, "sat": 6 };
+      
+      const sortedLogs = Object.entries(state.logs).sort((a, b) => {
+         const [cA, wA, dA] = a[0].split('_');
+         const [cB, wB, dB] = b[0].split('_');
+         
+         const cycA = parseInt(cA.replace('c','')) || 0;
+         const cycB = parseInt(cB.replace('c','')) || 0;
+         if (cycA !== cycB) return cycA - cycB;
+         
+         const wkA = parseInt(wA.replace('w','')) || 0;
+         const wkB = parseInt(wB.replace('w','')) || 0;
+         if (wkA !== wkB) return wkA - wkB;
+         
+         return (dayOrder[dA] || 0) - (dayOrder[dB] || 0);
+      });
+
+      // 2. Process day by day, applying the floor at midnight
+      sortedLogs.forEach(([key, entry]) => {
         const isFinalized = entry.isDayFinalized !== false; 
         if (isFinalized) {
             let load = 0;
             if (entry.sessionStatus && entry.sessionStatus.overall !== 'missed') {
-                load = entry.grossLoad || 0; 
+                // Backward compatibility: If grossLoad is missing, fallback to old RPE math
+                const fallbackLoad = (entry.rpe || 0) * 10;
+                load = entry.grossLoad !== undefined ? entry.grossLoad : fallbackLoad; 
             }
             const rec = entry.recoveryScore || 0;
+            
             netLoad += (load - rec);
+            netLoad = Math.max(0, netLoad); // The crucial chronological floor!
         }
       });
-      state.engine.accumulatedLoad = Math.max(0, netLoad);
+      
+      state.engine.accumulatedLoad = netLoad;
     }
 
     function updateDynamicWeekButtons() {
