@@ -67,7 +67,7 @@
     .btn-danger { background: var(--danger); color: #fff; }
     .btn-sm { padding: 4px 8px; font-size: 0.8rem; }
     .adaptive-alert { background: rgba(56, 189, 248, 0.1); border: 1px solid var(--primary); border-radius: 8px; padding: 12px; margin-top: 14px; font-size: 0.85rem; }
-    .intensity-comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: rgba(15, 23, 42, 0.6); padding: 10px; border-radius: 6px; text-align: center; margin-bottom: 12px; }
+    .intensity-comparison { display: grid; grid-template-columns: 1fr; gap: 8px; background: rgba(15, 23, 42, 0.6); padding: 10px; border-radius: 6px; text-align: center; margin-bottom: 12px; }
     .intensity-comparison strong { font-size: 1.2rem; }
     .achievements-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; margin-top: 10px; }
     .achievement-card { background: rgba(15, 23, 42, 0.6); border: 1px solid var(--card-border); border-radius: 8px; padding: 10px; text-align: center; opacity: 0.4; transition: all 0.2s; }
@@ -79,13 +79,21 @@
     .modal { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 10px; padding: 20px; width: 90%; max-width: 500px; }
     .session-block { margin-top: 10px; background: rgba(15, 23, 42, 0.4); padding: 12px; border-radius: 8px; border: 1px solid var(--card-border); }
     .session-block-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .vol-badge { font-size: 0.7rem; padding: 4px 6px; border-radius: 4px; cursor: pointer; border: 1px solid var(--card-border); background: var(--bg); color: var(--text-muted); font-weight: 700; text-align: center; flex: 1; }
+    .vol-badge:hover { color: #fff; border-color: #fff; }
+    .vol-badge.active { background: var(--primary); color: #0f172a; border-color: var(--primary); }
+    .vol-short.active { background: #3b82f6; }
+    .vol-med-short.active { background: #22c55e; }
+    .vol-med.active { background: #eab308; }
+    .vol-med-long.active { background: #f97316; }
+    .vol-long.active { background: #ef4444; }
   </style>
 </head>
 <body>
 
   <header>
     <div>
-      <h1>Adaptive System: Engine 32.0</h1>
+      <h1>Adaptive System: Engine 33.0</h1>
     </div>
     <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
       <div class="nav-tabs">
@@ -105,7 +113,7 @@
       <div class="gamify-icon" style="color: var(--warning);">⚡</div>
       <div class="gamify-info">
         <div class="gamify-label">Cycle Load Buffer</div>
-        <div class="gamify-val" id="hudLoad">0 / 450 pts</div>
+        <div class="gamify-val" id="hudLoad">0 / 750 pts</div>
         <div class="progress-bar-outer"><div class="progress-bar-inner load-bar-inner" id="hudLoadBar"></div></div>
       </div>
     </div>
@@ -177,12 +185,8 @@
           <h2>Session Logging</h2>
           <div class="intensity-comparison">
             <div>
-              <span style="font-size: 0.8rem; color: var(--text-muted); display: block;">Target RPE</span>
+              <span style="font-size: 0.8rem; color: var(--text-muted); display: block;">Base Target RPE</span>
               <strong id="plannedRpeDisplay">--</strong>
-            </div>
-            <div>
-              <span style="font-size: 0.8rem; color: var(--text-muted); display: block;">Avg Logged RPE</span>
-              <strong id="loggedRpeDisplay">--</strong>
             </div>
           </div>
 
@@ -260,6 +264,17 @@
           <label>Sub-Header / Label Name</label>
           <input type="text" id="modalSessionName" required placeholder="e.g. Morning Primer" />
         </div>
+
+        <div class="form-group">
+          <label>Target Volume</label>
+          <select id="modalSessionVolume">
+            <option value="short">Short</option>
+            <option value="medium_short">Medium-Short</option>
+            <option value="medium" selected>Medium</option>
+            <option value="medium_long">Medium-Long</option>
+            <option value="long">Long</option>
+          </select>
+        </div>
         
         <div class="form-group">
           <label>Expected Duration (Optional)</label>
@@ -327,20 +342,22 @@
       { id: "shield_saver", icon: "🛡️", title: "Shield Veteran", desc: "Preserve a streak using a shield" }
     ];
 
-    const LOAD_BUFFER_THRESHOLD = 450;
+    const LOAD_BUFFER_THRESHOLD = 750;
 
     let appData = JSON.parse(localStorage.getItem("swim_tracker_app_data"));
     let state = JSON.parse(localStorage.getItem("swim_tracker_state")) || {};
     let metaState = JSON.parse(localStorage.getItem("swim_tracker_meta")) || { cycle: 1, week: 1, activeWeeks: 3, overrides: {} };
 
-    // Migration logic for 32.0 to handle structural changes in blueprint
-    if (!appData || appData.version < 32.0) {
-      if(appData) appData.version = 32.0;
-      else appData = { version: 32.0, exercise_catalog: {}, mesocycle_structure: {} };
+    // Migration to 33.0 (Wipes logs and engine state as requested by user to apply new math purely)
+    if (!appData || appData.version < 33.0) {
+      if(appData) appData.version = 33.0;
+      else appData = { version: 33.0, exercise_catalog: {}, mesocycle_structure: {} };
       localStorage.setItem("swim_tracker_app_data", JSON.stringify(appData));
       
-      // Clear generated plans as they are now structurally incompatible
+      // Clean slate for the new accumulated load calculations
       localStorage.setItem("swim_tracker_generated_plans", JSON.stringify({})); 
+      localStorage.setItem("swim_tracker_logs", JSON.stringify({}));
+      localStorage.setItem("swim_tracker_engine", JSON.stringify({ accumulatedLoad: 0, isDeload: false }));
     }
 
     state = {
@@ -412,7 +429,14 @@
                          let count = slot.count || 1;
                          for(let i=0; i<count; i++) {
                              let newSlot = Object.assign({}, slot);
-                             delete newSlot.count; // Remove count property for the actual slot
+                             delete newSlot.count; 
+                             
+                             // Resolve focal points randomization if provided
+                             if (newSlot.focalPoints && newSlot.focalPoints.length > 0) {
+                                 const fp = newSlot.focalPoints[Math.floor(Math.random() * newSlot.focalPoints.length)];
+                                 newSlot.category = fp;
+                                 delete newSlot.focalPoints;
+                             }
                              
                              if (newSlot.exerciseId) {
                                  usedIds.add(newSlot.exerciseId);
@@ -461,8 +485,7 @@
         if (isFinalized) {
             let load = 0;
             if (entry.sessionStatus && entry.sessionStatus.overall !== 'missed') {
-                const ratio = entry.completionRatio !== undefined ? entry.completionRatio : 1;
-                load = (entry.rpe || 0) * 10 * ratio; 
+                load = entry.grossLoad || 0; 
             }
             const rec = entry.recoveryScore || 0;
             netLoad += (load - rec);
@@ -557,25 +580,39 @@
       const status = document.getElementById(`status_${key}`).value;
       const container = document.getElementById(`rpe_container_${key}`);
       if(container) {
-          container.style.display = (status === 'missed') ? 'none' : 'flex';
+          container.style.display = (status === 'missed') ? 'none' : 'block';
       }
       updateOverallRpe();
     };
+    
+    window.setVol = function(key, val) {
+        document.getElementById(`vol_val_${key}`).value = val;
+        const btns = document.querySelectorAll(`#vol_container_${key} .vol-badge`);
+        btns.forEach(b => b.classList.remove('active'));
+        if(val == 0.5) btns[0].classList.add('active', 'vol-short');
+        else if(val == 0.75) btns[1].classList.add('active', 'vol-med-short');
+        else if(val == 1.0) btns[2].classList.add('active', 'vol-med');
+        else if(val == 1.25) btns[3].classList.add('active', 'vol-med-long');
+        else if(val == 1.5) btns[4].classList.add('active', 'vol-long');
+        updateOverallRpe();
+    };
 
     window.updateOverallRpe = function() {
-      let sum = 0;
+      let sumLoad = 0;
       let count = 0;
       ['dryland', 'pool', 'other'].forEach(key => {
           const statusEl = document.getElementById(`status_${key}`);
           const rpeEl = document.getElementById(`rpe_${key}`);
-          if (statusEl && rpeEl && statusEl.value !== 'missed') {
-              sum += parseFloat(rpeEl.value);
+          const volEl = document.getElementById(`vol_val_${key}`);
+          if (statusEl && rpeEl && volEl && statusEl.value !== 'missed') {
+              let load = parseFloat(rpeEl.value) * parseFloat(volEl.value) * 10;
+              sumLoad += load;
               count++;
           }
       });
-      const avgDisplay = document.getElementById("liveAvgRpe");
-      if (avgDisplay) {
-          avgDisplay.innerText = count > 0 ? (sum / count).toFixed(1) : "0";
+      const loadDisplay = document.getElementById("liveAvgRpe");
+      if (loadDisplay) {
+          loadDisplay.innerText = count > 0 ? Math.round(sumLoad) : "0";
       }
     };
 
@@ -584,6 +621,7 @@
       container.innerHTML = "";
       const statuses = existingLog ? (existingLog.sessionStatus || {}) : {};
       const rpes = existingLog ? (existingLog.sessionRpes || {}) : {};
+      const vols = existingLog ? (existingLog.sessionVols || {}) : {};
       const plannedRpe = Math.round(dayData.baseRpe || 5);
       
       let hasScheduled = false;
@@ -597,13 +635,20 @@
         hasScheduled = true;
         
         let isRest = false;
+        let defaultVolMap = { "short": 0.5, "medium_short": 0.75, "medium": 1.0, "medium_long": 1.25, "long": 1.5 };
+        let blockVolTag = "medium"; // fallback
+        
         dayData[key].forEach(block => {
             if(block.exercises.some(item => item.category === 'rest')) isRest = true;
+            if(block.targetVolume) blockVolTag = block.targetVolume;
         });
 
         const defaultRpe = isRest ? 0 : plannedRpe;
+        const defaultVolNum = defaultVolMap[blockVolTag] || 1.0;
+        
         const statusVal = statuses[key] || "completed";
         const rpeVal = rpes[key] !== undefined ? rpes[key] : defaultRpe;
+        const volVal = vols[key] !== undefined ? vols[key] : defaultVolNum;
         
         container.innerHTML += `
           <div class="form-group" style="border-left: 2px solid var(--primary); padding-left: 10px; margin-bottom: 12px; background: rgba(15, 23, 42, 0.4); padding: 10px; border-radius: 6px;">
@@ -615,10 +660,21 @@
                   <option value="missed" ${statusVal==='missed'?'selected':''}>Missed / Skipped</option>
                 </select>
             </div>
-            <div id="rpe_container_${key}" style="display: ${statusVal==='missed' ? 'none' : 'flex'}; gap: 10px; align-items: center;">
-                <span style="font-size: 0.8rem; color: var(--text-muted); width: 40px;">RPE:</span>
-                <input type="range" id="rpe_${key}" min="0" max="10" value="${rpeVal}" oninput="document.getElementById('rpe_val_${key}').innerText = this.value; updateOverallRpe();" style="flex: 1;" />
-                <strong id="rpe_val_${key}" style="color: var(--primary); font-size: 1.1rem; min-width: 20px; text-align: right;">${rpeVal}</strong>
+            <div id="rpe_container_${key}" style="display: ${statusVal==='missed' ? 'none' : 'block'};">
+                <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 8px;">
+                    <span style="font-size: 0.8rem; color: var(--text-muted); width: 40px;">RPE:</span>
+                    <input type="range" id="rpe_${key}" min="0" max="10" value="${rpeVal}" oninput="document.getElementById('rpe_val_${key}').innerText = this.value; updateOverallRpe();" style="flex: 1;" />
+                    <strong id="rpe_val_${key}" style="color: var(--primary); font-size: 1.1rem; min-width: 20px; text-align: right;">${rpeVal}</strong>
+                </div>
+                
+                <input type="hidden" id="vol_val_${key}" value="${volVal}">
+                <div class="volume-badges" id="vol_container_${key}" style="display: flex; gap: 4px;">
+                    <div class="vol-badge ${volVal==0.5?'active vol-short':''}" onclick="setVol('${key}', 0.5)">Short</div>
+                    <div class="vol-badge ${volVal==0.75?'active vol-med-short':''}" onclick="setVol('${key}', 0.75)">Med-Short</div>
+                    <div class="vol-badge ${volVal==1.0?'active vol-med':''}" onclick="setVol('${key}', 1.0)">Medium</div>
+                    <div class="vol-badge ${volVal==1.25?'active vol-med-long':''}" onclick="setVol('${key}', 1.25)">Med-Long</div>
+                    <div class="vol-badge ${volVal==1.5?'active vol-long':''}" onclick="setVol('${key}', 1.5)">Long</div>
+                </div>
             </div>
           </div>
         `;
@@ -635,16 +691,16 @@
       } else {
          container.innerHTML += `
            <div id="averageRpeDisplay" style="margin-top: 16px; font-size: 1rem; text-align: center; background: rgba(56, 189, 248, 0.1); padding: 8px; border-radius: 6px; border: 1px dashed var(--primary);">
-             Calculated Average RPE: <strong id="liveAvgRpe" style="font-size: 1.15rem;">--</strong>
+             Generated Daily Load: <strong id="liveAvgRpe" style="font-size: 1.15rem;">--</strong> pts
            </div>
          `;
          setTimeout(updateOverallRpe, 0); 
       }
 
-      // Dynamic Defaults for Recovery Slider
-      let defaultRecUI = 3.0; 
-      if (plannedRpe <= 1.5) defaultRecUI = 8.0; 
-      else if (plannedRpe <= 6.0) defaultRecUI = 6.0;
+      // New 1.5x Recovery Scale
+      let defaultRecUI = 4.5; 
+      if (plannedRpe <= 1.5) defaultRecUI = 12.0; 
+      else if (plannedRpe <= 6.0) defaultRecUI = 9.0;
 
       const backendRecVal = existingLog && existingLog.recoveryScore !== undefined ? existingLog.recoveryScore : (defaultRecUI * 10);
       const uiRecVal = (backendRecVal / 10).toFixed(1);
@@ -654,10 +710,10 @@
           <label style="color: var(--success); font-size: 0.95rem;">Recovery / Rest Score</label>
           <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 4px;">
               <span style="font-size: 0.8rem; color: var(--text-muted); width: 40px;">Score:</span>
-              <input type="range" id="recoveryScoreUI" min="0" max="10" step="0.5" value="${uiRecVal}" oninput="document.getElementById('rec_val_display').innerText = this.value;" style="flex: 1; accent-color: var(--success);" />
-              <strong id="rec_val_display" style="color: var(--success); font-size: 1.1rem; min-width: 20px; text-align: right;">${uiRecVal}</strong>
+              <input type="range" id="recoveryScoreUI" min="0" max="15" step="0.5" value="${uiRecVal}" oninput="document.getElementById('rec_val_display').innerText = this.value;" style="flex: 1; accent-color: var(--success);" />
+              <strong id="rec_val_display" style="color: var(--success); font-size: 1.1rem; min-width: 30px; text-align: right;">${uiRecVal}</strong>
           </div>
-          <div style="font-size: 0.75rem; color: var(--text-muted);">Negates accumulated fatigue. (Default: Normal 3, Recovery 6, Rest 8).</div>
+          <div style="font-size: 0.75rem; color: var(--text-muted);">Negates fatigue (Default: Normal 4.5, Recovery 9.0, Rest 12.0).</div>
         </div>
       `;
     }
@@ -683,9 +739,6 @@
       document.getElementById("plannedRpeDisplay").innerText = plannedRpe;
 
       if (existingLog) {
-        document.getElementById("loggedRpeDisplay").innerText = Number(existingLog.rpe).toFixed(1);
-        document.getElementById("logNotes").value = existingLog.notes || "";
-        
         if (existingLog.isDayFinalized !== false) {
              document.getElementById("adaptiveFeedback").innerHTML = `<strong>✅ Day Completed.</strong> Gamification and Load Buffer updated.`;
              document.getElementById("adaptiveFeedback").style.borderColor = "var(--success)";
@@ -694,9 +747,7 @@
              document.getElementById("adaptiveFeedback").style.borderColor = "var(--warning)";
         }
       } else {
-        document.getElementById("loggedRpeDisplay").innerText = "--";
-        document.getElementById("logNotes").value = "";
-        document.getElementById("adaptiveFeedback").innerHTML = `<strong>Buffer Engine:</strong> Continuous netting. Complete Day to officially update buffer.`;
+        document.getElementById("adaptiveFeedback").innerHTML = `<strong>Buffer Engine:</strong> Accumulating daily load. Complete Day to update buffer.`;
         document.getElementById("adaptiveFeedback").style.borderColor = "var(--primary)";
       }
 
@@ -749,9 +800,9 @@
       let html = sessionBlocks.map((block, blockIndex) => {
           let blockHtml = `<div class="session-block">
               <div class="session-block-header">
-                  <strong style="color:var(--primary); font-size:0.95rem;">${block.subHeader || 'Session'} ${block.sessionDuration ? ` • ⏱️ ${block.sessionDuration}` : ''}</strong>
+                  <strong style="color:var(--primary); font-size:0.95rem;">${block.subHeader || 'Session'} ${block.targetVolume ? ` • [${block.targetVolume.replace('_', '-').toUpperCase()}]` : ''} ${block.sessionDuration ? ` • ⏱️ ${block.sessionDuration}` : ''}</strong>
                   <div>
-                      <button class="btn btn-secondary btn-sm" onclick="openAddExerciseModal('${type}', ${blockIndex})">+ Add Exercise</button>
+                      <button class="btn btn-secondary btn-sm" onclick="openAddExerciseModal('${type}', ${blockIndex})">+ Add</button>
                       <button class="btn btn-secondary btn-sm" style="padding:2px 8px; margin-left:4px;" onclick="deleteSessionBlock('${type}', ${blockIndex})" title="Delete entire block">✕</button>
                   </div>
               </div>
@@ -820,8 +871,9 @@
 
       const sessionStatus = {};
       const sessionRpes = {};
+      const sessionVols = {};
       let scheduledCount = 0; let completedCount = 0;
-      let sumRpe = 0;
+      let grossLoad = 0;
 
       ['dryland', 'pool', 'other'].forEach(key => {
         const el = document.getElementById(`status_${key}`);
@@ -832,15 +884,16 @@
           if (status === 'completed' || status === 'modified') {
             completedCount++;
             const rpeVal = parseFloat(document.getElementById(`rpe_${key}`).value);
+            const volVal = parseFloat(document.getElementById(`vol_val_${key}`).value);
             sessionRpes[key] = rpeVal;
-            sumRpe += rpeVal;
+            sessionVols[key] = volVal;
+            grossLoad += (rpeVal * volVal * 10);
           }
         }
       });
 
       const isRestDay = (scheduledCount === 0);
       const completionRatio = isRestDay ? 1.0 : (completedCount / scheduledCount);
-      let finalRpe = completedCount > 0 ? (sumRpe / completedCount) : 0;
       
       let newOverall = "completed";
       if (completionRatio === 0 && !isRestDay) newOverall = "missed";
@@ -892,7 +945,7 @@
       }
       
       sessionStatus.overall = newOverall;
-      state.logs[logKey] = { rpe: finalRpe, sessionRpes, rpeDelta: finalRpe - plannedRpe, sessionStatus, completionRatio, notes, recoveryScore, timestamp: new Date().toISOString(), isDayFinalized: willFinalize };
+      state.logs[logKey] = { grossLoad, sessionRpes, sessionVols, sessionStatus, completionRatio, notes, recoveryScore, timestamp: new Date().toISOString(), isDayFinalized: willFinalize };
       
       calculateAccumulatedLoad(); 
       saveState(); 
@@ -921,6 +974,7 @@
     window.openAddSessionModal = function(type) {
         document.getElementById("modalSessionType").value = type;
         document.getElementById("modalSessionName").value = "";
+        document.getElementById("modalSessionVolume").value = "medium";
         document.getElementById("modalSessionDuration").value = "";
         document.getElementById("sessionModal").style.display = "flex";
     };
@@ -930,6 +984,7 @@
         e.preventDefault();
         const type = document.getElementById("modalSessionType").value;
         const subHeader = document.getElementById("modalSessionName").value;
+        const targetVolume = document.getElementById("modalSessionVolume").value;
         const sessionDuration = document.getElementById("modalSessionDuration").value;
         
         const planKey = `c${state.currentCycle}_w${state.currentWeek}`;
@@ -937,6 +992,7 @@
         
         state.generatedPlans[planKey].days[state.currentDay][type].push({
             subHeader: subHeader,
+            targetVolume: targetVolume,
             sessionDuration: sessionDuration,
             exercises: []
         });
