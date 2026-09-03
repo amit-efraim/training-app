@@ -93,7 +93,7 @@
 
   <header>
     <div>
-      <h1>Adaptive System: Engine 33.0</h1>
+      <h1>Adaptive System: Engine 33.1</h1>
     </div>
     <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
       <div class="nav-tabs">
@@ -348,16 +348,11 @@
     let state = JSON.parse(localStorage.getItem("swim_tracker_state")) || {};
     let metaState = JSON.parse(localStorage.getItem("swim_tracker_meta")) || { cycle: 1, week: 1, activeWeeks: 3, overrides: {} };
 
-    // Migration to 33.0 (Wipes logs and engine state as requested by user to apply new math purely)
-    if (!appData || appData.version < 33.0) {
-      if(appData) appData.version = 33.0;
-      else appData = { version: 33.0, exercise_catalog: {}, mesocycle_structure: {} };
+    // Migration to 33.1
+    if (!appData || appData.version < 33.1) {
+      if(appData) appData.version = 33.1;
+      else appData = { version: 33.1, exercise_catalog: {}, mesocycle_structure: {} };
       localStorage.setItem("swim_tracker_app_data", JSON.stringify(appData));
-      
-      // Clean slate for the new accumulated load calculations
-      localStorage.setItem("swim_tracker_generated_plans", JSON.stringify({})); 
-      localStorage.setItem("swim_tracker_logs", JSON.stringify({}));
-      localStorage.setItem("swim_tracker_engine", JSON.stringify({ accumulatedLoad: 0, isDeload: false }));
     }
 
     state = {
@@ -697,23 +692,24 @@
          setTimeout(updateOverallRpe, 0); 
       }
 
-      // New 1.5x Recovery Scale
-      let defaultRecUI = 4.5; 
-      if (plannedRpe <= 1.5) defaultRecUI = 12.0; 
-      else if (plannedRpe <= 6.0) defaultRecUI = 9.0;
+      // Reverted to 0-10 UI scale, 1.5x backend multiplier
+      let defaultRecUI = 3.0; 
+      if (plannedRpe <= 1.5) defaultRecUI = 8.0; 
+      else if (plannedRpe <= 6.0) defaultRecUI = 6.0;
 
-      const backendRecVal = existingLog && existingLog.recoveryScore !== undefined ? existingLog.recoveryScore : (defaultRecUI * 10);
-      const uiRecVal = (backendRecVal / 10).toFixed(1);
+      // Ensure backward logic plays nicely with existing logs stored at 15x scale
+      const backendRecVal = existingLog && existingLog.recoveryScore !== undefined ? existingLog.recoveryScore : (defaultRecUI * 15);
+      const uiRecVal = (backendRecVal / 15).toFixed(1);
 
       container.innerHTML += `
         <div class="form-group" style="border-top: 1px dashed var(--card-border); padding-top: 16px; margin-top: 16px;">
           <label style="color: var(--success); font-size: 0.95rem;">Recovery / Rest Score</label>
           <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 4px;">
               <span style="font-size: 0.8rem; color: var(--text-muted); width: 40px;">Score:</span>
-              <input type="range" id="recoveryScoreUI" min="0" max="15" step="0.5" value="${uiRecVal}" oninput="document.getElementById('rec_val_display').innerText = this.value;" style="flex: 1; accent-color: var(--success);" />
+              <input type="range" id="recoveryScoreUI" min="0" max="10" step="0.5" value="${uiRecVal}" oninput="document.getElementById('rec_val_display').innerText = this.value;" style="flex: 1; accent-color: var(--success);" />
               <strong id="rec_val_display" style="color: var(--success); font-size: 1.1rem; min-width: 30px; text-align: right;">${uiRecVal}</strong>
           </div>
-          <div style="font-size: 0.75rem; color: var(--text-muted);">Negates fatigue (Default: Normal 4.5, Recovery 9.0, Rest 12.0).</div>
+          <div style="font-size: 0.75rem; color: var(--text-muted);">Negates fatigue (Default: Normal 3.0, Recovery 6.0, Rest 8.0).</div>
         </div>
       `;
     }
@@ -862,12 +858,10 @@
     window.handleLogAction = function(isCompleting) {
       const planKey = `c${state.currentCycle}_w${state.currentWeek}`;
       const logKey = `${planKey}_${state.currentDay}`;
-      const dayData = state.generatedPlans[planKey].days[state.currentDay];
-      const plannedRpe = (dayData.baseRpe || 0);
-      const notes = document.getElementById("logNotes").value;
       
       const recInput = document.getElementById('recoveryScoreUI');
-      const recoveryScore = recInput ? parseFloat(recInput.value) * 10 : 0;
+      // Takes the 0-10 UI value, scales to points (*10), applies backend factor (*1.5) = *15
+      const recoveryScore = recInput ? parseFloat(recInput.value) * 15 : 0; 
 
       const sessionStatus = {};
       const sessionRpes = {};
