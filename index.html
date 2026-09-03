@@ -50,7 +50,7 @@
     .row-mobility td:first-child { color: var(--mobility); font-weight: 700; }
 
     .add-block-row { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
-    .btn { background: #fff; color: #0f172a; border: none; padding: 9px 14px; border-radius: 6px; font-weight: 700; cursor: pointer; }
+    .btn { background: #fff; color: #0f172a; border: none; padding: 9px 14px; border-radius: 6px; font-weight: 700; cursor: pointer; transition: background 0.2s, color 0.2s; }
     .btn-pool { background: rgba(56, 189, 248, 0.15); color: var(--pool); border: 1px solid var(--pool); }
     .btn-dryland { background: rgba(249, 115, 22, 0.15); color: var(--dryland); border: 1px solid var(--dryland); }
     .btn-mobility { background: rgba(16, 185, 129, 0.15); color: var(--mobility); border: 1px solid var(--mobility); }
@@ -92,6 +92,8 @@
     .form-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
     label { font-size: 0.85rem; font-weight: 600; color: var(--text-muted); }
     select, input { background: #0f172a; border: 1px solid var(--card-border); color: var(--text); padding: 8px 10px; border-radius: 6px; outline: none; }
+    optgroup { font-weight: 700; color: var(--pool); }
+    option { font-weight: normal; color: var(--text); }
   </style>
 </head>
 <body>
@@ -150,7 +152,7 @@
       </div>
       <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
         <span style="font-size: 0.8rem; color: var(--text-muted);">Negates fatigue (Score × 10). Typical sleep = 5.0.</span>
-        <button class="btn" style="background: var(--success); color: #0f172a;" onclick="saveRecovery()">💾 Save Recovery</button>
+        <button class="btn" id="saveRecBtn" style="background: var(--success); color: #0f172a; min-width: 130px;" onclick="saveRecovery()">💾 Save Recovery</button>
       </div>
     </div>
   </div>
@@ -249,15 +251,10 @@
     let logs = JSON.parse(localStorage.getItem("swim_tracker_logs")) || {};
     let engineState = JSON.parse(localStorage.getItem("swim_tracker_engine")) || { accumulatedLoad: 0 };
 
-    // Migration to 34.0 (Pure Logger)
     if (!appData || appData.version < 34.0) {
       if(appData) appData.version = 34.0;
       else appData = { version: 34.0, exercise_catalog: {}, mesocycle_structure: {} };
       localStorage.setItem("swim_tracker_app_data", JSON.stringify(appData));
-      
-      // Wipe legacy planner states safely
-      localStorage.removeItem("swim_tracker_generated_plans");
-      localStorage.removeItem("swim_tracker_gamify");
     }
 
     let currentDay = DAYS[new Date().getDay()].id;
@@ -334,10 +331,10 @@
               });
           }
           const recScore = entry.recovery !== undefined ? entry.recovery : 0; 
-          const recClearance = recScore * 10; // 1.0x Scale. e.g. Score 5.0 clears 50 points.
+          const recClearance = recScore * 10;
           
           netLoad += (dailyGrossLoad - recClearance);
-          netLoad = Math.max(0, netLoad); // Daily zero floor! No negative banking.
+          netLoad = Math.max(0, netLoad); 
       });
       
       engineState.accumulatedLoad = netLoad;
@@ -354,7 +351,6 @@
 
     // --- MAIN RENDERER ---
     function renderDayView() {
-      // 1. Render Blueprint Targets Table
       const phaseKey = metaState.week === 4 ? "deload" : `week${metaState.week}`;
       const blueprint = appData.mesocycle_structure[phaseKey] || { phaseName: "No Data", targets: [] };
       document.getElementById("weekTitle").innerText = blueprint.phaseName;
@@ -367,11 +363,9 @@
             return `<tr class="${rowClass}"><td>${t.type}</td><td>${t.count}</td><td>${t.rpe}</td><td>${t.volume}</td></tr>`;
         }).join('');
 
-      // 2. Render Blocks & Recovery
       const logKey = `c${metaState.cycle}_w${metaState.week}_${currentDay}`;
       const dailyLog = logs[logKey] || { blocks: [], recovery: 5.0 };
       
-      // Init missing daily log implicitly
       if(!logs[logKey]) logs[logKey] = dailyLog;
 
       const container = document.getElementById("sessionBlocksContainer");
@@ -381,7 +375,6 @@
           container.innerHTML = dailyLog.blocks.map(block => renderSingleBlock(block)).join('');
       }
 
-      // Update Recovery Slider
       document.getElementById("globalRecovery").value = dailyLog.recovery;
       document.getElementById("recVal").innerText = Number(dailyLog.recovery).toFixed(1);
     }
@@ -409,17 +402,9 @@
         const rpe = block.rpe || 5;
         const load = Math.round(rpe * vol * 10);
 
-        return `
-        <div class="session-block ${typeClass}" id="block_${block.id}">
-            <div class="session-header">
-                <span class="session-title">${block.type} Block</span>
-                <button class="btn" style="background: transparent; color: var(--danger); padding: 4px; font-size:1.1rem; border:none;" onclick="deleteBlock(${block.id})" title="Delete Block">🗑️</button>
-            </div>
-            
-            ${exercisesHtml}
-            
-            <button class="btn" style="background: ${btnColorMap[block.type]}; color: ${titleColorMap[block.type]}; width: 100%; margin-bottom: 16px; padding: 6px; font-size: 0.85rem;" onclick="openExerciseModal(${block.id}, '${block.type}')">+ Add Exercise</button>
-            
+        let logControlsHtml = '';
+        if (block.type !== 'Mobility') {
+            logControlsHtml = `
             <div class="log-controls">
                 <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:6px; font-weight:600;">SESSION EFFORT (RPE)</div>
                 <div class="slider-row">
@@ -439,9 +424,23 @@
 
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px;">
                     <span style="font-size:0.8rem; color:var(--pool); font-weight:600;">Block Load: ${load} pts</span>
-                    <button class="btn" style="background:#fff; color:#0f172a; padding:6px 16px; font-size:0.85rem;" onclick="saveBlock(${block.id})">💾 Save Block</button>
+                    <button class="btn" id="btnSave_${block.id}" style="background:#fff; color:#0f172a; padding:6px 16px; font-size:0.85rem; min-width: 120px;" onclick="saveBlock(${block.id}, this)">💾 Save Block</button>
                 </div>
+            </div>`;
+        }
+
+        return `
+        <div class="session-block ${typeClass}" id="block_${block.id}">
+            <div class="session-header">
+                <span class="session-title">${block.type} Block</span>
+                <button class="btn" style="background: transparent; color: var(--danger); padding: 4px; font-size:1.1rem; border:none;" onclick="deleteBlock(${block.id})" title="Delete Block">🗑️</button>
             </div>
+            
+            ${exercisesHtml}
+            
+            <button class="btn" style="background: ${btnColorMap[block.type]}; color: ${titleColorMap[block.type]}; width: 100%; margin-bottom: 16px; padding: 6px; font-size: 0.85rem;" onclick="openExerciseModal(${block.id}, '${block.type}')">+ Add Exercise</button>
+            
+            ${logControlsHtml}
         </div>`;
     }
 
@@ -456,7 +455,7 @@
             type: type,
             exercises: [],
             volume: 1.0,
-            rpe: 5.0
+            rpe: type === 'Mobility' ? 0.0 : 5.0 // Mobility generates 0 Load implicitly
         });
         saveMeta();
         renderDayView();
@@ -493,7 +492,7 @@
         else if(val == 1.5) btns[4].classList.add('active', 'vol-long');
     };
 
-    window.saveBlock = function(id) {
+    window.saveBlock = function(id, btnElement) {
         const logKey = `c${metaState.cycle}_w${metaState.week}_${currentDay}`;
         const block = logs[logKey].blocks.find(b => b.id === id);
         if(block) {
@@ -502,6 +501,12 @@
             calculateChronologicalLoad();
             renderHUD();
             renderDayView();
+            
+            if (btnElement) {
+                const orig = btnElement.innerText;
+                btnElement.innerText = "✅ Saved!";
+                setTimeout(() => { btnElement.innerText = orig; }, 1500);
+            }
         }
     };
 
@@ -511,7 +516,13 @@
         logs[logKey].recovery = parseFloat(document.getElementById("globalRecovery").value);
         calculateChronologicalLoad();
         renderHUD();
-        alert("Recovery Logged!");
+        
+        const btn = document.getElementById('saveRecBtn');
+        if (btn) {
+            const orig = btn.innerText;
+            btn.innerText = "✅ Saved!";
+            setTimeout(() => { btn.innerText = orig; }, 1500);
+        }
     };
 
     // --- MODAL & CUSTOM EXERCISE LOGIC ---
@@ -520,18 +531,35 @@
         document.getElementById("modalBlockType").value = type;
         
         const select = document.getElementById("modalExerciseSelect");
-        select.innerHTML = `<option value="" disabled selected>-- Select an Exercise --</option>
-                            <option value="CREATE_NEW" style="font-weight:bold; color:var(--pool);">[+] Create Custom Exercise...</option>`;
+        let grouped = {};
         
+        // Filter and group catalog items
         Object.entries(appData.exercise_catalog).forEach(([id, ex]) => {
-            // Filter: Pool blocks get Pool exercises. Dryland/Mobility get Dryland exercises.
-            let catMatch = (type === 'Pool' && ex.type === 'pool') || (type !== 'Pool' && ex.type === 'dryland');
+            let catMatch = false;
+            if (type === 'Pool') catMatch = (ex.type === 'pool');
+            else if (type === 'Mobility') catMatch = (ex.category === 'mobility');
+            else if (type === 'Dryland') catMatch = (ex.type === 'dryland' && ex.category !== 'mobility');
+            
             if (catMatch) {
-                select.innerHTML += `<option value="${id}">${ex.name} (${ex.category})</option>`;
+                if(!grouped[ex.category]) grouped[ex.category] = [];
+                grouped[ex.category].push({ id, ...ex });
             }
         });
 
-        // Setup dynamic categories for custom creation based on Block Type
+        let optionsHtml = `<option value="" disabled selected>-- Select an Exercise --</option>
+                           <option value="CREATE_NEW" style="font-weight:bold; color:var(--pool);">[+] Create Custom Exercise...</option>`;
+                           
+        Object.keys(grouped).sort().forEach(cat => {
+            optionsHtml += `<optgroup label="${cat.replace('_',' ').toUpperCase()}">`;
+            grouped[cat].forEach(ex => {
+                optionsHtml += `<option value="${ex.id}">${ex.name}</option>`;
+            });
+            optionsHtml += `</optgroup>`;
+        });
+        
+        select.innerHTML = optionsHtml;
+
+        // Dynamic categories for creation form
         const catSelect = document.getElementById("newExCategory");
         catSelect.innerHTML = "";
         let cats = [];
@@ -571,16 +599,13 @@
             const actualType = blockType === 'Pool' ? 'pool' : 'dryland';
             
             selectedId = actualType + "_" + name.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
-            
             const newEx = { name: name, type: actualType, category: category, equipment: equipment, notes: "" };
             
-            // Add directly to catalog if checkbox is checked
             if (document.getElementById("newExSaveCatalog").checked) {
                 appData.exercise_catalog[selectedId] = newEx;
                 localStorage.setItem("swim_tracker_app_data", JSON.stringify(appData));
                 document.getElementById("jsonArea").value = JSON.stringify(appData, null, 2);
             } else {
-                // Temporary catalog entry just so the UI renders it properly for this session
                 if(!appData.exercise_catalog[selectedId]) appData.exercise_catalog[selectedId] = newEx; 
             }
         }
@@ -611,7 +636,7 @@
       }
     }
 
-    /* GOOGLE DRIVE SYNC: Unchanged mechanics, updated names */
+    /* GOOGLE DRIVE SYNC */
     const SCOPES = 'https://www.googleapis.com/auth/drive.file';
     let tokenClient;
     let pendingAction = null;
