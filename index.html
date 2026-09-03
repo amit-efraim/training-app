@@ -880,13 +880,15 @@ function calculateAccumulatedLoad() {
         }
     };
 
-    window.handleLogAction = function(isCompleting) {
+window.handleLogAction = function(isCompleting) {
       const planKey = `c${state.currentCycle}_w${state.currentWeek}`;
       const logKey = `${planKey}_${state.currentDay}`;
       
+      // THIS WAS THE MISSING LINE CAUSING THE CRASH:
+      const notes = document.getElementById("logNotes") ? document.getElementById("logNotes").value : "";
+      
       const recInput = document.getElementById('recoveryScoreUI');
-      // Takes the 0-10 UI value, scales to points (*10), applies backend factor (*1.5) = *15
-      const recoveryScore = recInput ? parseFloat(recInput.value) * 15 : 0; 
+      const recoveryScore = recInput ? parseFloat(recInput.value) * 15 : 0;
 
       const sessionStatus = {};
       const sessionRpes = {};
